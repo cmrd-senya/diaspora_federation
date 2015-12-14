@@ -33,6 +33,10 @@ module DiasporaFederation
       #   @see Conversation#guid
       #   @return [String] conversation guid
       property :conversation_guid
+
+      def self.parent_entity_class
+        "Conversation"
+      end
     end
   end
 end

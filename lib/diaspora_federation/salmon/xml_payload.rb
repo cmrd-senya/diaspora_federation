@@ -99,7 +99,9 @@ module DiasporaFederation
           end
         }]
 
-        Entities::Relayable.verify_signatures(data) if klass.included_modules.include?(Entities::Relayable)
+        if klass.included_modules.include?(Entities::Relayable)
+          Entities::Relayable.verify_signatures(data, klass.parent_entity_class)
+        end
 
         klass.new(data)
       end
