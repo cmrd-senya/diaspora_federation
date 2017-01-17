@@ -32,6 +32,8 @@ XML
 
     it_behaves_like "a relayable Entity"
 
+    include_examples "#to_json output matches JSON schema"
+
     context "invalid XML" do
       it "raises a ValidationError if the parent_type is missing" do
         broken_xml = <<-XML

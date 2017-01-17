@@ -17,6 +17,8 @@ require File.join(File.dirname(__FILE__), "..", "test", "dummy", "config", "envi
 
 require "rspec/rails"
 require "webmock/rspec"
+require "rspec/json_expectations"
+
 
 # load factory girl factories
 require "factories"
@@ -44,6 +46,22 @@ def add_signatures(hash, klass=described_class)
   hash[:parent_author_signature] = properties[:parent_author_signature]
 end
 
+def entity_hash_from(hash)
+  hash.transform_values {|value|
+    if [String, TrueClass, FalseClass, Integer].any? {|c| value.is_a? c }
+      value.to_s
+    elsif value.nil?
+      nil
+    elsif value.is_a? Time
+      value.iso8601
+    elsif value.instance_of?(Array)
+      value.map(&:to_h)
+    else
+      value.to_h
+    end
+  }
+end
+
 # Requires supporting files with custom matchers and macros, etc,
 # in ./support/ and its subdirectories.
 fixture_builder_file = "#{File.dirname(__FILE__)}/support/fixture_builder.rb"
@@ -52,6 +70,9 @@ support_files.each {|f| require f }
 require fixture_builder_file
 
 RSpec.configure do |config|
+  config.include JSON::SchemaMatchers
+  config.json_schemas[:entity_schema] = "app/schemas/federation_entities.json"
+
   config.example_status_persistence_file_path = "spec/rspec-persistance.txt"
 
   config.infer_spec_type_from_file_location!

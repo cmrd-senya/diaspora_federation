@@ -11,6 +11,7 @@ module DiasporaFederation
     let(:local_parent) { FactoryGirl.build(:related_entity, author: bob.diaspora_id) }
     let(:remote_parent) { FactoryGirl.build(:related_entity, author: bob.diaspora_id, local: false) }
     let(:hash) { {guid: guid, author: author, parent_guid: parent_guid, parent: local_parent, property: property} }
+    let(:hash_with_fake_signatures) { hash.merge!(author_signature: "aa", parent_author_signature: "bb") }
 
     let(:legacy_signature_data) { "#{guid};#{author};#{property};#{parent_guid}" }
 
@@ -159,26 +160,23 @@ module DiasporaFederation
 XML
 
       it "adds new unknown xml elements to the xml again" do
-        hash.merge!(author_signature: "aa", parent_author_signature: "bb")
         xml_order = [:author, :guid, :parent_guid, :property, "new_property"]
-        xml = SomeRelayable.new(hash, xml_order, "new_property" => new_property).to_xml
+        xml = SomeRelayable.new(hash_with_fake_signatures, xml_order, "new_property" => new_property).to_xml
 
         expect(xml.to_s.strip).to eq(expected_xml.strip)
       end
 
       it "converts strings in xml_order to symbol if needed" do
-        hash.merge!(author_signature: "aa", parent_author_signature: "bb")
         xml_order = %w(author guid parent_guid property new_property)
-        xml = SomeRelayable.new(hash, xml_order, "new_property" => new_property).to_xml
+        xml = SomeRelayable.new(hash_with_fake_signatures, xml_order, "new_property" => new_property).to_xml
 
         expect(xml.to_s.strip).to eq(expected_xml.strip)
       end
 
       it "adds missing properties from xml_order to xml" do
-        hash.merge!(author_signature: "aa", parent_author_signature: "bb")
         xml_order = [:author, :guid, :parent_guid, :property, "new_property"]
 
-        xml = SomeRelayable.new(hash, xml_order).to_xml
+        xml = SomeRelayable.new(hash_with_fake_signatures, xml_order).to_xml
 
         expect(xml.at_xpath("new_property").text).to be_empty
       end
@@ -220,9 +218,7 @@ XML
       end
 
       it "doesn't change signatures if they are already set" do
-        hash.merge!(author_signature: "aa", parent_author_signature: "bb")
-
-        xml = SomeRelayable.new(hash).to_xml
+        xml = SomeRelayable.new(hash_with_fake_signatures).to_xml
 
         expect(xml.at_xpath("author_signature").text).to eq("aa")
         expect(xml.at_xpath("parent_author_signature").text).to eq("bb")
@@ -312,6 +308,223 @@ XML
             SomeRelayable.from_xml(xml)
           }.to raise_error DiasporaFederation::Entities::Relayable::SignatureVerificationFailed
         end
+      end
+    end
+
+    describe "#to_json_hash" do
+      include_examples "common #to_json behavior" do
+        let(:entity_class) { SomeRelayable }
+        let(:json) { entity_class.new(hash).to_json_hash.to_json }
+      end
+
+      it "contains JSON properties for each of the entity properties with the signable_data property" do
+        property_order = %i(author guid parent_guid property)
+        json = entity_class.new(hash_with_fake_signatures, property_order).to_json_hash.to_json
+
+        expect(json).to include_json(
+          signable_data: [
+            {author: hash[:author]},
+            {guid: hash[:guid]},
+            {parent_guid: hash[:parent_guid]},
+            {property: hash[:property]}
+          ]
+        )
+      end
+
+      it "adds new unknown elements to the json again" do
+        property_order = [:author, :guid, :parent_guid, :property, "new_property"]
+        json = SomeRelayable.new(hash_with_fake_signatures, property_order, "new_property" => new_property)
+                            .to_json_hash.to_json
+
+        expect(json).to include_json(
+          signable_data: [
+            {author: hash[:author]},
+            {guid: hash[:guid]},
+            {parent_guid: hash[:parent_guid]},
+            {property: hash[:property]},
+            {new_property: new_property}
+          ]
+        )
+      end
+
+      it "adds missing properties from property order to json" do
+        property_order = [:author, :guid, :parent_guid, :property, "new_property"]
+        json = SomeRelayable.new(hash_with_fake_signatures, property_order).to_json_hash.to_json
+
+        expect(json).to include_json(
+          signable_data: {
+            4 => {new_property: ""}
+          }
+        )
+      end
+
+      it "computes correct signatures for the entity with new unknown elements" do
+        expect_callback(:fetch_private_key, author).and_return(author_pkey)
+        expect_callback(:fetch_private_key, local_parent.author).and_return(parent_pkey)
+
+        property_order = [:author, :guid, :parent_guid, "new_property", :property]
+        signature_data_with_new_property = "#{author};#{guid};#{parent_guid};#{new_property};#{property}"
+
+        json_hash = SomeRelayable.new(hash, property_order, "new_property" => new_property).to_json_hash
+        author_signature = json_hash[:author_signature]
+        parent_author_signature = json_hash[:parent_author_signature]
+
+        expect(verify_signature(author_pkey, author_signature, signature_data_with_new_property)).to be_truthy
+        expect(verify_signature(parent_pkey, parent_author_signature, signature_data_with_new_property)).to be_truthy
+      end
+
+      it "doesn't change signatures if they are already set" do
+        json = SomeRelayable.new(hash_with_fake_signatures).to_json_hash.to_json
+        expect(json).to include_json(author_signature: "aa")
+        expect(json).to include_json(parent_author_signature: "bb")
+      end
+
+      it "raises when author_signature not set and key isn't supplied" do
+        expect_callback(:fetch_private_key, author).and_return(nil)
+
+        expect {
+          SomeRelayable.new(hash).to_json_hash
+        }.to raise_error Entities::Relayable::AuthorPrivateKeyNotFound
+      end
+
+      it "doesn't set parent_author_signature if key isn't supplied" do
+        expect_callback(:fetch_private_key, author).and_return(author_pkey)
+        expect_callback(:fetch_private_key, local_parent.author).and_return(nil)
+
+        json = SomeRelayable.new(hash).to_json_hash.to_json
+        expect(json).to include_json(parent_author_signature: "")
+      end
+    end
+
+    describe ".from_json" do
+      let(:entity_class) { SomeRelayable }
+      context "sanity" do
+        include_examples ".from_json arguments verification"
+        include_examples "it raises error when the entity class doesn't match the entity_class property", <<-JSON
+{
+  "entity_class": "unknown_entity",
+  "signable_data": []
+}
+JSON
+      end
+
+      context "parsing" do
+        before do
+          expect_callback(:fetch_public_key, author).and_return(author_pkey.public_key)
+          expect_callback(:fetch_public_key, remote_parent.author).and_return(parent_pkey.public_key)
+        end
+
+        it_behaves_like ".from_json returned object" do
+          let(:entity) {
+            expect_callback(:fetch_private_key, author).and_return(author_pkey)
+            expect_callback(:fetch_private_key, local_parent.author).and_return(parent_pkey)
+            entity_class.new(hash)
+          }
+        end
+
+        context "when JSON properties are sorted and there is an unknown property" do
+          let(:new_signature_data) { "#{author};#{guid};#{parent_guid};#{new_property};#{property}" }
+          let(:author_signature) { sign_with_key(author_pkey, new_signature_data) }
+          let(:parent_author_signature) { sign_with_key(parent_pkey, new_signature_data) }
+          let(:json) {
+            <<-JSON
+{
+  "entity_class": "some_relayable",
+  "signable_data": [
+    {"author": "#{author}"},
+    {"guid": "#{guid}"},
+    {"parent_guid": "#{parent_guid}"},
+    {"new_property": "#{new_property}"},
+    {"property": "#{property}"}
+  ],
+  "author_signature": "#{author_signature}",
+  "parent_author_signature": "#{parent_author_signature}"
+}
+JSON
+          }
+
+          it "parses JSON data of the proper format" do
+            entity = SomeRelayable.from_json(json)
+            expect(entity).to be_an_instance_of SomeRelayable
+            expect(entity.author).to eq(author)
+            expect(entity.guid).to eq(guid)
+            expect(entity.parent_guid).to eq(parent_guid)
+            expect(entity.property).to eq(property)
+            expect(entity.author_signature).to eq(author_signature)
+            expect(entity.parent_author_signature).to eq(parent_author_signature)
+            expect(entity.additional_xml_elements).to eq("new_property" => new_property)
+          end
+
+          it "hand over the order in the json to the instance without signatures" do
+            entity = SomeRelayable.from_json(json)
+            expect(entity.xml_order).to eq([:author, :guid, :parent_guid, "new_property", :property])
+          end
+
+          it "calls a constructor of the entity of the appropriate type" do
+            expect(SomeRelayable).to receive(:new).with(
+              {
+                author:                  author,
+                guid:                    guid,
+                parent_guid:             parent_guid,
+                property:                property,
+                author_signature:        author_signature,
+                parent_author_signature: parent_author_signature
+              },
+              [:author, :guid, :parent_guid, "new_property", :property],
+              "new_property" => new_property
+            )
+            SomeRelayable.from_json(json)
+          end
+        end
+
+        it "creates Entity with empty 'additional_xml_elements' if the xml has only known properties" do
+          json = <<-JSON
+{
+  "entity_class": "some_relayable",
+  "signable_data": [
+    {"guid": "#{guid}"},
+    {"author": "#{author}"},
+    {"property": "#{property}"},
+    {"parent_guid": "#{parent_guid}"}
+  ],
+  "author_signature": "#{sign_with_key(author_pkey, legacy_signature_data)}",
+  "parent_author_signature": "#{sign_with_key(parent_pkey, legacy_signature_data)}"
+}
+JSON
+
+          entity = SomeRelayable.from_json(json)
+
+          expect(entity).to be_an_instance_of SomeRelayable
+          expect(entity.property).to eq(property)
+          expect(entity.additional_xml_elements).to be_empty
+        end
+
+        context "relayable signature verification feature support" do
+          it "calls signatures verification on relayable unpack" do
+            json = <<-JSON
+{
+  "entity_class": "some_relayable",
+  "signable_data": [
+    {"guid": "#{guid}"},
+    {"author": "#{author}"},
+    {"property": "#{property}"},
+    {"parent_guid": "#{parent_guid}"}
+  ],
+  "author_signature": "aa",
+  "parent_author_signature": "bb"
+}
+JSON
+
+            expect_callback(:fetch_public_key, author).and_return(author_pkey.public_key)
+
+            expect {
+              SomeRelayable.from_json(json)
+            }.to raise_error DiasporaFederation::Entities::Relayable::SignatureVerificationFailed
+          end
+        end
+
+        include_examples ".from_json parse error", "entity_class is missing", '{"signable_data": {}}'
+        include_examples ".from_json parse error", "signable_data is missing", '{"entity_class": "some_relayable"}'
       end
     end
 

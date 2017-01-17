@@ -149,6 +149,19 @@ module DiasporaFederation
       "#{self.class.name.rpartition('::').last}#{":#{guid}" if respond_to?(:guid)}"
     end
 
+    # Might be used to modify entity JSON object just before serialization
+    # @return [Hash] Returns a hash that is equal by structure to the entity in JSON format
+    def to_json_hash
+      {}
+    end
+
+    # @return [String] Renders the entity to the JSON representation
+    delegate :to_json, to: :to_json_hash
+
+    def self.from_json(json)
+      JSON.parse(json)
+    end
+
     private
 
     def validate_missing_props(entity_data)
@@ -361,6 +374,9 @@ module DiasporaFederation
     # Raised, if the entity contained within the XML cannot be mapped to a
     # defined {Entity} subclass.
     class UnknownEntity < RuntimeError
+    end
+
+    class DeserializationError < RuntimeError
     end
   end
 end

@@ -26,21 +26,7 @@ shared_examples "an Entity subclass" do
 
     describe "#to_h" do
       it "should return a hash with nested data" do
-        expected_data = data.transform_values {|value|
-          if [String, TrueClass, FalseClass, Integer].any? {|c| value.is_a? c }
-            value.to_s
-          elsif value.nil?
-            nil
-          elsif value.is_a? Time
-            value.iso8601
-          elsif value.instance_of?(Array)
-            value.map(&:to_h)
-          else
-            value.to_h
-          end
-        }
-
-        expect(instance.to_h).to eq(expected_data)
+        expect(instance.to_h).to eq(entity_hash_from(data))
       end
     end
 
@@ -131,5 +117,59 @@ shared_examples "a retraction" do
       }.to raise_error DiasporaFederation::Entities::Retraction::TargetNotFound,
                        "not found: #{data[:target_type]}:#{unknown_guid}"
     end
+  end
+end
+
+shared_examples "#to_json output matches JSON schema" do
+  it "#to_json output matches JSON schema" do
+    json = described_class.new(data).to_json
+    expect(json).to match_json_schema(:entity_schema)
+  end
+end
+
+shared_examples "common #to_json behavior" do
+  it "contains entity_class property matching the entity class (underscored)" do
+    expect(json).to include_json(entity_class: entity_class.entity_name)
+  end
+
+  it "is parsable with #from_json" do
+    expect {
+      entity_class.from_json(json)
+    }.not_to raise_error
+  end
+end
+
+shared_examples ".from_json arguments verification" do
+  it "raises error when input parameter isn't a valid JSON" do
+    expect { entity_class.from_json("abcdef") }.to raise_error(JSON::ParserError)
+  end
+
+  it "raises error when input parameter isn't a string" do
+    expect { entity_class.from_json(123) }.to raise_error(TypeError)
+    expect { entity_class.from_json(:abc) }.to raise_error(TypeError)
+  end
+end
+
+shared_examples "it raises error when the entity class doesn't match the entity_class property" do |faulty_json|
+  it "raises error when the entity class doesn't match the entity_class property" do
+    expect {
+      entity_class.from_json(faulty_json)
+    }.to raise_error DiasporaFederation::Entity::InvalidRootNode,
+                     "'unknown_entity' can't be parsed by DiasporaFederation::Entity"
+  end
+end
+
+shared_examples ".from_json returned object" do
+  it "from_json(entity_json).to_json should match entity.to_json" do
+    entity_json = entity.to_json
+    expect(entity_class.from_json(entity_json).to_json).to eq(entity_json)
+  end
+end
+
+shared_examples ".from_json parse error" do |example_name, json|
+  it "raises error when #{example_name}" do
+    expect {
+      entity_class.from_json(json)
+    }.to raise_error DiasporaFederation::Entity::DeserializationError
   end
 end

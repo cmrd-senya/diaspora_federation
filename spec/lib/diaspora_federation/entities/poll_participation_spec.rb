@@ -29,5 +29,7 @@ XML
     it_behaves_like "an XML Entity"
 
     it_behaves_like "a relayable Entity"
+
+    include_examples "#to_json output matches JSON schema"
   end
 end

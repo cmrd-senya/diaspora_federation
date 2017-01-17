@@ -60,6 +60,8 @@ XML
 
     it_behaves_like "an XML Entity"
 
+    include_examples "#to_json output matches JSON schema"
+
     context "default values" do
       it "uses default values" do
         minimal_xml = <<-XML

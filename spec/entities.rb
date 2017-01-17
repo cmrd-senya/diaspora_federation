@@ -46,6 +46,16 @@ module DiasporaFederation
     class TestEntityWithTimestamp < DiasporaFederation::Entity
       property :test, :timestamp
     end
+
+    class TestComplexEntity < DiasporaFederation::Entity
+      property :test1, :string
+      property :test2, :boolean
+      property :test3, :string
+      property :test4, :integer
+      property :test5, :timestamp
+      entity :test6, TestEntity
+      entity :multi, [OtherEntity]
+    end
   end
 
   module Validators

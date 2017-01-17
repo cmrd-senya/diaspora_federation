@@ -32,6 +32,8 @@ XML
 
     it_behaves_like "a relayable Entity"
 
+    include_examples "#to_json output matches JSON schema"
+
     describe "#created_at" do
       it "has a created_at after parse" do
         entity = described_class.from_xml(Nokogiri::XML::Document.parse(xml).root)
