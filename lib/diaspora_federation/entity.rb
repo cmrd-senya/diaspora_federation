@@ -109,10 +109,11 @@ module DiasporaFederation
     # @param [Nokogiri::XML::Element] root_node xml nodes
     # @return [Entity] instance
     def self.from_xml(root_node)
-      raise ArgumentError, "only Nokogiri::XML::Element allowed" unless root_node.instance_of?(Nokogiri::XML::Element)
-      raise InvalidRootNode, "'#{root_node.name}' can't be parsed by #{name}" unless root_node.name == entity_name
+      from_xml_sanity_validation(root_node)
 
-      populate_entity(root_node)
+      populate_entity {|name, type|
+        parse_element_from_node(name, type, root_node)
+      }
     end
 
     # Makes an underscored, lowercase form of the class name
@@ -152,14 +153,36 @@ module DiasporaFederation
     # Might be used to modify entity JSON object just before serialization
     # @return [Hash] Returns a hash that is equal by structure to the entity in JSON format
     def to_json_hash
-      {}
+      {
+        entity_class: self.class.entity_name,
+        entity_data:  enriched_properties
+      }
     end
 
     # @return [String] Renders the entity to the JSON representation
-    delegate :to_json, to: :to_json_hash
+    def to_json
+      to_json_hash.to_json
+    end
 
+    # Deserialization of an Entity object from JSON format
+    # @param [String] json
+    # @return [Entity] instance
     def self.from_json(json)
-      JSON.parse(json)
+      json_hash = JSON.parse(json)
+      raise DeserializationError if json_hash["entity_class"].nil? || json_hash["entity_data"].nil?
+      assert_parsability_of(json_hash["entity_class"])
+      from_json_data(json_hash["entity_data"])
+    end
+
+    # Creates an instance of self, filling it with data from "entity_data" object of a parsed JSON
+    # @param [Hash] json_entity_data A hash from "entity_data" property of the JSON object
+    # @return [Entity] instance
+    def self.from_json_data(json_entity_data)
+      return if json_entity_data.nil?
+
+      populate_entity {|name, type|
+        parse_element_from_json(type, json_entity_data[name.to_s])
+      }
     end
 
     private
@@ -238,7 +261,7 @@ module DiasporaFederation
 
     def normalize_property(name, value)
       case self.class.class_props[name]
-      when :string, :integer, :boolean
+      when :string
         value.to_s
       when :timestamp
         value.nil? ? "" : value.utc.iso8601
@@ -258,8 +281,8 @@ module DiasporaFederation
     end
 
     def add_property_to_xml(doc, root_element, name, value)
-      if value.is_a? String
-        root_element << simple_node(doc, name, value)
+      if [String, TrueClass, FalseClass, Integer].any? {|c| value.is_a? c }
+        root_element << simple_node(doc, name, value.to_s)
       else
         # call #to_xml for each item and append to root
         [*value].compact.each do |item|
@@ -277,19 +300,33 @@ module DiasporaFederation
       end
     end
 
-    # @param [Nokogiri::XML::Element] root_node xml nodes
     # @return [Entity] instance
-    private_class_method def self.populate_entity(root_node)
-      new(entity_data(root_node))
+    private_class_method def self.populate_entity(&parser)
+      new(entity_data(&parser))
     end
 
-    # @param [Nokogiri::XML::Element] root_node xml nodes
+    # @yield
     # @return [Hash] entity data
-    private_class_method def self.entity_data(root_node)
+    private_class_method def self.entity_data
       class_props.map {|name, type|
-        value = parse_element_from_node(name, type, root_node)
+        value = yield(name, type)
         [name, value] unless value.nil?
       }.compact.to_h
+    end
+
+    private_class_method def self.parse_element_from_json(type, json_value)
+      if %i(integer boolean).include?(type)
+        json_value
+      elsif type.instance_of?(Symbol)
+        parse_string(type, json_value)
+      elsif type.instance_of?(Array)
+        raise DeserializationError unless json_value.respond_to?(:map)
+        json_value.map {|element|
+          type.first.from_json_data(element)
+        }
+      elsif type.ancestors.include?(Entity)
+        type.from_json_data(json_value)
+      end
     end
 
     # @param [String] name property name to parse
@@ -357,6 +394,15 @@ module DiasporaFederation
     private_class_method def self.parse_array_from_node(type, root_node)
       node = root_node.xpath(type.entity_name)
       node.select {|child| child.children.any? }.map {|child| type.from_xml(child) } unless node.empty?
+    end
+
+    private_class_method def self.assert_parsability_of(entity_class)
+      raise InvalidRootNode, "'#{entity_class}' can't be parsed by #{name}" unless entity_class == entity_name
+    end
+
+    private_class_method def self.from_xml_sanity_validation(root_node)
+      raise ArgumentError, "only Nokogiri::XML::Element allowed" unless root_node.instance_of?(Nokogiri::XML::Element)
+      assert_parsability_of(root_node.name)
     end
 
     # Raised, if entity is not valid

@@ -110,7 +110,7 @@
           "type": "object",
           "properties": {
             "guid": { "type": "string" },
-            "public": { "enum": ["true", "false"] },
+            "public": { "type": "boolean" },
             "created_at": { "type": "string" },
             "provider_display_name" : { "type": "string" }
           },
@@ -191,7 +191,7 @@
                       "created_at": {"type": "string"},
                       "remote_photo_path": {"type": "string"},
                       "remote_photo_name": {"type": "string"},
-                      "text": {"type": "null"},
+                      "text": {"type": ["null", "string"]},
                       "status_message_guid": {"type": "string"},
                       "width": {"type": "number"},
                       "height": {"type": "number"}
@@ -245,13 +245,13 @@
         "entity_data": {
           "type": "object",
           "properties": {
-            "first_name": { "type": "string" },
-            "last_name": { "type": "string" },
-            "gender": { "type": "string" },
-            "bio": { "type": "string" },
-            "birthday": { "type": "string" },
-            "location": { "type": "string" },
-            "image_url": { "type": "string" },
+            "first_name": { "type": ["string", "null"] },
+            "last_name": { "type": ["string", "null"] },
+            "gender": { "type": ["string", "null"] },
+            "bio": { "type": ["string", "null"] },
+            "birthday": { "type": ["string", "null"] },
+            "location": { "type": ["string", "null"] },
+            "image_url": { "type": ["string", "null"] },
             "author": { "type": "string" }
           },
           "required": [

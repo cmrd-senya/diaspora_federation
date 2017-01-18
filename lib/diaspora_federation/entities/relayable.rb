@@ -185,6 +185,14 @@ module DiasporaFederation
 
       # Override class methods from {Entity} to parse the xml
       module ParseXML
+        # @param [Nokogiri::XML::Element] root_node xml nodes
+        # @return [Entity] instance
+        def from_xml(root_node)
+          from_xml_sanity_validation(root_node)
+
+          populate_entity(root_node)
+        end
+
         private
 
         # @param [Nokogiri::XML::Element] root_node xml nodes

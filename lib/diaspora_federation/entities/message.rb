@@ -69,7 +69,9 @@ module DiasporaFederation
       # @param [Nokogiri::XML::Element] root_node xml nodes
       # @return [Entity] instance
       private_class_method def self.populate_entity(root_node)
-        new({parent_guid: nil, parent: nil}.merge(entity_data(root_node)))
+        new({parent_guid: nil, parent: nil}.merge(entity_data {|name, type|
+          parse_element_from_node(name, type, root_node)
+        }))
       end
     end
   end

@@ -68,7 +68,11 @@ module DiasporaFederation
     describe "#to_h" do
       it "returns a hash of the internal data" do
         entity = Entities::TestDefaultEntity.new(data)
-        expect(entity.to_h).to eq(data.transform_values(&:to_s))
+        expect(entity.to_h).to eq(
+          data.map {|key, value|
+            [key, entity.class.class_props[key] == :string ? value.to_s : value]
+          }.to_h
+        )
       end
     end
 
@@ -324,7 +328,7 @@ JSON
 
       context "parsing" do
         it "parses a JSON data of the proper format" do
-          now = Time.now.utc
+          now = Time.now.change(usec: 0).utc
           json = <<-JSON
 {
   "entity_class": "test_complex_entity",
@@ -363,7 +367,7 @@ JSON
 
       it "calls a constructor of the entity of the appropriate type" do
         json = '{"entity_class": "test_default_entity", "entity_data": {"test1": "abc", "test2": "123"}}'
-        expect(Entities::TestDefaultEntity).to receive(:new).with(test1: "abc", test2: "123", test3: true, test4: true)
+        expect(Entities::TestDefaultEntity).to receive(:new).with(test1: "abc", test2: "123")
         Entities::TestDefaultEntity.from_json(json)
       end
     end

@@ -311,7 +311,7 @@ XML
       end
     end
 
-    describe "#to_json_hash" do
+    xdescribe "#to_json_hash" do
       include_examples "common #to_json behavior" do
         let(:entity_class) { SomeRelayable }
         let(:json) { entity_class.new(hash).to_json_hash.to_json }
@@ -396,7 +396,7 @@ XML
       end
     end
 
-    describe ".from_json" do
+    xdescribe ".from_json" do
       let(:entity_class) { SomeRelayable }
       context "sanity" do
         include_examples ".from_json arguments verification"

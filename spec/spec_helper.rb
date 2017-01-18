@@ -48,10 +48,8 @@ end
 
 def entity_hash_from(hash)
   hash.transform_values {|value|
-    if [String, TrueClass, FalseClass, Integer].any? {|c| value.is_a? c }
-      value.to_s
-    elsif value.nil?
-      nil
+    if [String, TrueClass, FalseClass, Integer, NilClass].any? {|c| value.is_a? c }
+      value
     elsif value.is_a? Time
       value.iso8601
     elsif value.instance_of?(Array)
