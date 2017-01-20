@@ -137,6 +137,12 @@ shared_examples "common #to_json behavior" do
       entity_class.from_json(json)
     }.not_to raise_error
   end
+
+  it "contains JSON properties for each of the entity properties with the entity_data property" do
+    entity_data = entity_hash_from(hash)
+    entity_data.delete(:parent)
+    expect(json).to include_json(entity_data: entity_data)
+  end
 end
 
 shared_examples ".from_json arguments verification" do
@@ -155,7 +161,7 @@ shared_examples "it raises error when the entity class doesn't match the entity_
     expect {
       entity_class.from_json(faulty_json)
     }.to raise_error DiasporaFederation::Entity::InvalidRootNode,
-                     "'unknown_entity' can't be parsed by DiasporaFederation::Entity"
+                     "'unknown_entity' can't be parsed by #{entity_class}"
   end
 end
 

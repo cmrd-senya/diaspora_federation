@@ -21,23 +21,26 @@
       "type": "object",
       "description": "please don't use this object unless you're defining a new child relayable schema",
       "properties": {
-        "signable_data": {
-          "type": "array",
-          "uniqueItems": true,
-          "items": {
-            "description": "before json schema v6 is available to us, we have to leave our items format loosely defined",
-            "description": "when v6 is available, each descendant of the relayable schema will define item types strictly (see \"contains\")",
-            "description": "currently items are still validated on diaspora_federation level",
-            "type": "object",
-            "maxProperties": 1,
-            "minProperties": 1
-          }
+        "entity_data": {
+          "type": "object",
+          "properties": {
+            "author": { "type": "string" },
+            "guid": { "type": "string" },
+            "parent_guid": { "type": "string" },
+            "author_signature": { "$ref": "#/definitions/signature" },
+            "parent_author_signature": { "$ref": "#/definitions/signature" }
+          },
+          "required": [
+            "author", "guid", "parent_guid"
+          ]
         },
-        "author_signature": { "$ref": "#/definitions/signature" },
-        "parent_author_signature": { "$ref": "#/definitions/signature" }
+        "property_order": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
       },
       "required": [
-        "signable_data", "entity_class"
+        "entity_data", "entity_class", "property_order"
       ]
     },
 
@@ -47,7 +50,14 @@
         {
           "type": "object",
           "properties": {
-            "created_at": { "type": "string" },
+            "entity_data": {
+              "type": "object",
+              "properties": {
+                "text": { "type": "string" },
+                "created_at": { "type": "string" }
+              },
+              "required": ["text"]
+            },
             "entity_class": {
               "type": "string",
               "pattern": "^comment$"
@@ -66,6 +76,14 @@
             "entity_class": {
               "type": "string",
               "pattern": "^like$"
+            },
+            "entity_data": {
+              "type": "object",
+              "properties": {
+                "positive": { "type": "boolean" },
+                "parent_type": { "enum": ["Post", "Comment"] }
+              },
+              "required": ["positive"]
             }
           }
         }
@@ -81,6 +99,12 @@
             "entity_class": {
               "type": "string",
               "pattern": "^participation$"
+            },
+            "entity_data": {
+              "type": "object",
+              "properties": {
+                "parent_type": {"enum": ["Post"]}
+              }
             }
           }
         }
@@ -96,6 +120,13 @@
             "entity_class": {
               "type": "string",
               "pattern": "^poll_participation$"
+            },
+            "entity_data": {
+              "type": "object",
+              "properties": {
+                "poll_answer_guid": { "type": "string" }
+              },
+              "required": ["poll_answer_guid"]
             }
           }
         }

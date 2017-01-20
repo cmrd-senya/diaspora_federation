@@ -303,10 +303,6 @@ XML
       let(:json) { entity_class.new(hash).to_json_hash.to_json }
 
       include_examples "common #to_json behavior"
-
-      it "contains JSON properties for each of the entity properties with the entity_data property" do
-        expect(json).to include_json(entity_data: entity_hash_from(hash))
-      end
     end
 
     describe ".from_json" do
