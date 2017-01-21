@@ -313,6 +313,52 @@ XML
       end
     end
 
+    describe ".from_xml" do
+      context "parse invalid XML" do
+        it "raises a ValidationError if the parent_guid is missing" do
+          broken_xml = <<-XML
+<some_relayable>
+  <author_signature/>
+  <parent_author_signature/>
+</some_relayable>
+          XML
+
+          expect {
+            SomeRelayable.from_xml(Nokogiri::XML::Document.parse(broken_xml).root)
+          }.to raise_error Entity::ValidationError, "invalid DiasporaFederation::SomeRelayable! missing 'parent_guid'."
+        end
+      end
+
+      context "fetch parent" do
+        before do
+          expect_callback(:fetch_public_key, author).and_return(author_pkey.public_key)
+          expect_callback(:fetch_public_key, remote_parent.author).and_return(parent_pkey.public_key)
+          expect_callback(:fetch_private_key, author).and_return(author_pkey)
+          expect_callback(:fetch_private_key, remote_parent.author).and_return(parent_pkey)
+        end
+
+        let(:xml) { SomeRelayable.new(hash).to_xml }
+
+        it "fetches the parent from the backend" do
+          expect_callback(:fetch_related_entity, "Parent", parent_guid).and_return(remote_parent)
+          expect(Federation::Fetcher).not_to receive(:fetch_public)
+
+          entity = SomeRelayable.from_xml(xml)
+
+          expect(entity.parent).to eq(remote_parent)
+        end
+
+        it "fetches the parent from remote if not found on backend" do
+          expect_callback(:fetch_related_entity, "Parent", parent_guid).and_return(nil, remote_parent)
+          expect(Federation::Fetcher).to receive(:fetch_public).with(author, "Parent", parent_guid)
+
+          entity = SomeRelayable.from_xml(xml)
+
+          expect(entity.parent).to eq(remote_parent)
+        end
+      end
+    end
+
     describe "#to_json_hash" do
       include_examples "common #to_json behavior" do
         let(:entity_class) { SomeRelayable }
@@ -528,50 +574,6 @@ JSON
             }.to raise_error DiasporaFederation::Entities::Relayable::SignatureVerificationFailed
           end
         end
-      end
-    end
-
-    context "parse invalid XML" do
-      it "raises a ValidationError if the parent_guid is missing" do
-        broken_xml = <<-XML
-<some_relayable>
-  <author_signature/>
-  <parent_author_signature/>
-</some_relayable>
-XML
-
-        expect {
-          SomeRelayable.from_xml(Nokogiri::XML::Document.parse(broken_xml).root)
-        }.to raise_error Entity::ValidationError, "invalid DiasporaFederation::SomeRelayable! missing 'parent_guid'."
-      end
-    end
-
-    context "fetch parent" do
-      before do
-        expect_callback(:fetch_public_key, author).and_return(author_pkey.public_key)
-        expect_callback(:fetch_public_key, remote_parent.author).and_return(parent_pkey.public_key)
-        expect_callback(:fetch_private_key, author).and_return(author_pkey)
-        expect_callback(:fetch_private_key, remote_parent.author).and_return(parent_pkey)
-      end
-
-      let(:xml) { SomeRelayable.new(hash).to_xml }
-
-      it "fetches the parent from the backend" do
-        expect_callback(:fetch_related_entity, "Parent", parent_guid).and_return(remote_parent)
-        expect(Federation::Fetcher).not_to receive(:fetch_public)
-
-        entity = SomeRelayable.from_xml(xml)
-
-        expect(entity.parent).to eq(remote_parent)
-      end
-
-      it "fetches the parent from remote if not found on backend" do
-        expect_callback(:fetch_related_entity, "Parent", parent_guid).and_return(nil, remote_parent)
-        expect(Federation::Fetcher).to receive(:fetch_public).with(author, "Parent", parent_guid)
-
-        entity = SomeRelayable.from_xml(xml)
-
-        expect(entity.parent).to eq(remote_parent)
       end
     end
 
