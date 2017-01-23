@@ -302,7 +302,8 @@ XML
       let(:entity_class) { Entities::TestComplexEntity }
       let(:json) { entity_class.new(hash).to_json_hash.to_json }
 
-      include_examples "common #to_json behavior"
+      include_examples "common Entity JSON expectations"
+      include_examples "JSON is parsable with #from_json"
     end
 
     describe ".from_json" do

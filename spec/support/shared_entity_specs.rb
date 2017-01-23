@@ -127,21 +127,23 @@ shared_examples "#to_json output matches JSON schema" do
   end
 end
 
-shared_examples "common #to_json behavior" do
+shared_examples "common Entity JSON expectations" do
   it "contains entity_class property matching the entity class (underscored)" do
     expect(json).to include_json(entity_class: entity_class.entity_name)
-  end
-
-  it "is parsable with #from_json" do
-    expect {
-      entity_class.from_json(json)
-    }.not_to raise_error
   end
 
   it "contains JSON properties for each of the entity properties with the entity_data property" do
     entity_data = entity_hash_from(hash)
     entity_data.delete(:parent)
     expect(json).to include_json(entity_data: entity_data)
+  end
+end
+
+shared_examples "JSON is parsable with #from_json" do
+  it "is parsable with #from_json" do
+    expect {
+      entity_class.from_json(json)
+    }.not_to raise_error
   end
 end
 

@@ -360,9 +360,23 @@ XML
     end
 
     describe "#to_json_hash" do
-      include_examples "common #to_json behavior" do
-        let(:entity_class) { SomeRelayable }
-        let(:json) { entity_class.new(hash_with_fake_signatures).to_json_hash.to_json }
+      let(:entity_class) { SomeRelayable }
+      context "with no signatures provided" do
+        let(:json) { entity_class.new(hash).to_json_hash.to_json }
+
+        before do
+          expect_callback(:fetch_private_key, author).and_return(author_pkey)
+          expect_callback(:fetch_private_key, local_parent.author).and_return(nil)
+        end
+
+        include_examples "common Entity JSON expectations"
+
+        it_behaves_like "JSON is parsable with #from_json" do
+          before do
+            expect_callback(:fetch_public_key, author).and_return(author_pkey.public_key)
+            expect_callback(:fetch_related_entity, "Parent", parent_guid).at_most(:once).and_return(local_parent)
+          end
+        end
       end
 
       it "contains property order within the property_order property" do
@@ -374,10 +388,17 @@ XML
 
       it "uses xml_order for filling property_order" do
         entity = entity_class.new(hash_with_fake_signatures).dup
-        expect(entity).to receive(:xml_order).and_return(%w(property1 property2))
+        expect(entity).to receive(:xml_order).at_least(:once).and_return(%w(property1 property2))
         expect(
           entity.to_json_hash.to_json
         ).to include_json(property_order: %w(property1 property2))
+      end
+
+      it "uses legacy order for filling property_order when no xml_order supplied" do
+        entity = entity_class.new(hash_with_fake_signatures)
+        expect(
+          entity.to_json_hash.to_json
+        ).to include_json(property_order: entity_class::LEGACY_SIGNATURE_ORDER.map(&:to_s))
       end
 
       it "adds new unknown elements to the json again" do
@@ -396,7 +417,7 @@ XML
         json = SomeRelayable.new(hash_with_fake_signatures, property_order).to_json_hash.to_json
 
         expect(json).to include_json(
-          entity_data:    {new_property: ""},
+          entity_data:    {new_property: nil},
           property_order: {4 => "new_property"}
         )
       end
@@ -459,6 +480,7 @@ JSON
 
       context "parsing" do
         before do
+          expect_callback(:fetch_related_entity, "Parent", parent_guid).and_return(remote_parent)
           expect_callback(:fetch_public_key, author).and_return(author_pkey.public_key)
           expect_callback(:fetch_public_key, remote_parent.author).and_return(parent_pkey.public_key)
         end
@@ -507,7 +529,7 @@ JSON
 
           it "hand over the order in the json to the instance without signatures" do
             entity = SomeRelayable.from_json(json)
-            expect(entity.xml_order).to eq([:author, :guid, :parent_guid, "new_property", :property])
+            expect(entity.xml_order).to eq(%w(author guid parent_guid new_property property))
           end
 
           it "calls a constructor of the entity of the appropriate type" do
@@ -518,11 +540,12 @@ JSON
                 parent_guid:             parent_guid,
                 property:                property,
                 author_signature:        author_signature,
-                parent_author_signature: parent_author_signature
+                parent_author_signature: parent_author_signature,
+                parent:                  remote_parent
               },
-              [:author, :guid, :parent_guid, "new_property", :property],
+              %w(author guid parent_guid new_property property),
               "new_property" => new_property
-            )
+            ).and_call_original
             SomeRelayable.from_json(json)
           end
         end
@@ -549,10 +572,11 @@ JSON
           expect(entity.property).to eq(property)
           expect(entity.additional_xml_elements).to be_empty
         end
+      end
 
-        context "relayable signature verification feature support" do
-          it "calls signatures verification on relayable unpack" do
-            json = <<-JSON
+      context "relayable signature verification feature support" do
+        it "calls signatures verification on relayable unpack" do
+          json = <<-JSON
 {
   "entity_class": "some_relayable",
   "entity_data": {
@@ -567,12 +591,11 @@ JSON
 }
 JSON
 
-            expect_callback(:fetch_public_key, author).and_return(author_pkey.public_key)
-
-            expect {
-              SomeRelayable.from_json(json)
-            }.to raise_error DiasporaFederation::Entities::Relayable::SignatureVerificationFailed
-          end
+          expect_callback(:fetch_related_entity, "Parent", parent_guid).and_return(remote_parent)
+          expect_callback(:fetch_public_key, author).and_return(author_pkey.public_key)
+          expect {
+            SomeRelayable.from_json(json)
+          }.to raise_error DiasporaFederation::Entities::Relayable::SignatureVerificationFailed
         end
       end
     end
