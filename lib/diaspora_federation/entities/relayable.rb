@@ -96,6 +96,16 @@ module DiasporaFederation
         "#{super}#{":#{parent_type}" if respond_to?(:parent_type)}:#{parent_guid}"
       end
 
+      def to_json_hash
+        super.merge!(property_order: signature_order).tap {|json_hash|
+          missing_properties = json_hash[:property_order] - json_hash[:entity_data].keys
+          missing_data = missing_properties.map {|property|
+            [property, nil]
+          }.to_h
+          json_hash[:entity_data].merge!(missing_data)
+        }
+      end
+
       private
 
       # Check that signature is a correct signature
@@ -193,6 +203,33 @@ module DiasporaFederation
           populate_entity(root_node)
         end
 
+        def from_json_hash(json_hash)
+          from_json_sanity_validation(json_hash)
+          from_json_data(json_hash["entity_data"], json_hash["property_order"])
+        end
+
+        def from_json_data(json_entity_data, property_order)
+          return if json_entity_data.nil?
+
+          # populate_entity {|name, type|
+          #  parse_element_from_json(type, json_entity_data[name.to_s])
+          # }
+          entity_data = {}
+          additional_xml_elements = {}
+          json_entity_data.each do |property_name, value|
+            property = find_property_for_xml_name(property_name)
+
+            if property
+              entity_data[property] = parse_element_from_json(class_props[property], value)
+            else
+              additional_xml_elements[property_name] = value
+            end
+          end
+
+          fetch_parent(entity_data)
+          new(entity_data, property_order, additional_xml_elements).tap(&:verify_signatures)
+        end
+
         private
 
         # @param [Nokogiri::XML::Element] root_node xml nodes
@@ -239,6 +276,11 @@ module DiasporaFederation
           # Fetch and receive parent from remote, if not available locally
           Federation::Fetcher.fetch_public(data[:author], type, guid)
           data[:parent] = DiasporaFederation.callbacks.trigger(:fetch_related_entity, type, guid)
+        end
+
+        def from_json_sanity_validation(json_hash)
+          super
+          raise DiasporaFederation::Entity::DeserializationError if json_hash["property_order"].nil?
         end
       end
 

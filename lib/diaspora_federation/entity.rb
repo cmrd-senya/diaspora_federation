@@ -155,7 +155,7 @@ module DiasporaFederation
     def to_json_hash
       {
         entity_class: self.class.entity_name,
-        entity_data:  enriched_properties
+        entity_data:  json_data
       }
     end
 
@@ -168,10 +168,7 @@ module DiasporaFederation
     # @param [String] json
     # @return [Entity] instance
     def self.from_json(json)
-      json_hash = JSON.parse(json)
-      raise DeserializationError if json_hash["entity_class"].nil? || json_hash["entity_data"].nil?
-      assert_parsability_of(json_hash["entity_class"])
-      from_json_data(json_hash["entity_data"])
+      from_json_hash(JSON.parse(json))
     end
 
     # Creates an instance of self, filling it with data from "entity_data" object of a parsed JSON
@@ -183,6 +180,12 @@ module DiasporaFederation
       populate_entity {|name, type|
         parse_element_from_json(type, json_entity_data[name.to_s])
       }
+    end
+
+    # TODO: documentation
+    def self.from_json_hash(json_hash)
+      from_json_sanity_validation(json_hash)
+      from_json_data(json_hash["entity_data"])
     end
 
     private
@@ -300,6 +303,19 @@ module DiasporaFederation
       end
     end
 
+    def json_data
+      enriched_properties.map {|key, value|
+        type = self.class.class_props[key]
+
+        if type.instance_of?(Class) && value.respond_to?(:to_json_hash)
+          entity_data = value.to_json_hash[:entity_data]
+          [key, entity_data] unless entity_data.nil?
+        else
+          [key, value]
+        end
+      }.compact.to_h
+    end
+
     # @return [Entity] instance
     private_class_method def self.populate_entity(&parser)
       new(entity_data(&parser))
@@ -405,6 +421,11 @@ module DiasporaFederation
       assert_parsability_of(root_node.name)
     end
 
+    private_class_method def self.from_json_sanity_validation(json_hash)
+      raise DeserializationError if json_hash["entity_class"].nil? || json_hash["entity_data"].nil?
+      assert_parsability_of(json_hash["entity_class"])
+    end
+
     # Raised, if entity is not valid
     class ValidationError < RuntimeError
     end
@@ -422,6 +443,7 @@ module DiasporaFederation
     class UnknownEntity < RuntimeError
     end
 
+    # TODO: documentation
     class DeserializationError < RuntimeError
     end
   end
