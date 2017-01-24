@@ -167,7 +167,7 @@ shared_examples "it raises error when the entity class doesn't match the entity_
   end
 end
 
-shared_examples ".from_json returned object" do
+shared_examples ".from_json returns valid object" do
   it "from_json(entity_json).to_json should match entity.to_json" do
     entity_json = entity.to_json
     expect(entity_class.from_json(entity_json).to_json).to eq(entity_json)

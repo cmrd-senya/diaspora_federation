@@ -379,19 +379,11 @@ XML
         end
       end
 
-      it "contains property order within the property_order property" do
+      it "contains the property order within the property_order property" do
         property_order = %i(author guid parent_guid property)
         json = entity_class.new(hash_with_fake_signatures, property_order).to_json_hash.to_json
 
         expect(json).to include_json(property_order: property_order.map(&:to_s))
-      end
-
-      it "uses xml_order for filling property_order" do
-        entity = entity_class.new(hash_with_fake_signatures).dup
-        expect(entity).to receive(:xml_order).at_least(:once).and_return(%w(property1 property2))
-        expect(
-          entity.to_json_hash.to_json
-        ).to include_json(property_order: %w(property1 property2))
       end
 
       it "uses legacy order for filling property_order when no xml_order supplied" do
@@ -485,7 +477,7 @@ JSON
           expect_callback(:fetch_public_key, remote_parent.author).and_return(parent_pkey.public_key)
         end
 
-        it_behaves_like ".from_json returned object" do
+        it_behaves_like ".from_json returns valid object" do
           let(:entity) {
             expect_callback(:fetch_private_key, author).and_return(author_pkey)
             expect_callback(:fetch_private_key, local_parent.author).and_return(parent_pkey)
@@ -515,7 +507,7 @@ JSON
 JSON
           }
 
-          it "parses JSON data of the proper format" do
+          it "parses entity properties from the JSON data" do
             entity = SomeRelayable.from_json(json)
             expect(entity).to be_an_instance_of SomeRelayable
             expect(entity.author).to eq(author)
@@ -524,10 +516,14 @@ JSON
             expect(entity.property).to eq(property)
             expect(entity.author_signature).to eq(author_signature)
             expect(entity.parent_author_signature).to eq(parent_author_signature)
+          end
+
+          it "makes unknown properties available via #additional_xml_elements" do
+            entity = SomeRelayable.from_json(json)
             expect(entity.additional_xml_elements).to eq("new_property" => new_property)
           end
 
-          it "hand over the order in the json to the instance without signatures" do
+          it "hands over the order in the json to the instance without signatures" do
             entity = SomeRelayable.from_json(json)
             expect(entity.xml_order).to eq(%w(author guid parent_guid new_property property))
           end
@@ -569,7 +565,6 @@ JSON
           entity = SomeRelayable.from_json(json)
 
           expect(entity).to be_an_instance_of SomeRelayable
-          expect(entity.property).to eq(property)
           expect(entity.additional_xml_elements).to be_empty
         end
       end

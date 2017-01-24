@@ -318,13 +318,13 @@ XML
 JSON
       end
 
-      it_behaves_like ".from_json returned object" do
+      it_behaves_like ".from_json returns valid object" do
         let(:entity_class) { Entities::TestEntity }
         let(:entity) { entity_class.new(test: "asdf") }
       end
 
       context "parsing" do
-        it "parses a JSON data of the proper format" do
+        it "parses entity properties from the JSON data" do
           now = Time.now.change(usec: 0).utc
           json = <<-JSON
 {
