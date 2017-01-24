@@ -321,7 +321,7 @@ XML
   <author_signature/>
   <parent_author_signature/>
 </some_relayable>
-          XML
+XML
 
           expect {
             SomeRelayable.from_xml(Nokogiri::XML::Document.parse(broken_xml).root)
