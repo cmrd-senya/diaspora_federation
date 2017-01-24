@@ -174,18 +174,18 @@ module DiasporaFederation
     # Creates an instance of self, filling it with data from "entity_data" object of a parsed JSON
     # @param [Hash] json_entity_data A hash from "entity_data" property of the JSON object
     # @return [Entity] instance
-    def self.from_json_data(json_entity_data)
-      return if json_entity_data.nil?
+    def self.from_hash(properties_hash)
+      return if properties_hash.nil?
 
       populate_entity {|name, type|
-        parse_element_from_json(type, json_entity_data[name.to_s])
+        parse_element_from_value(type, properties_hash[name.to_s])
       }
     end
 
     # TODO: documentation
     def self.from_json_hash(json_hash)
       from_json_sanity_validation(json_hash)
-      from_json_data(json_hash["entity_data"])
+      from_hash(*extract_json_hash(json_hash))
     end
 
     private
@@ -330,19 +330,23 @@ module DiasporaFederation
       }.compact.to_h
     end
 
-    private_class_method def self.parse_element_from_json(type, json_value)
-      if %i(integer boolean).include?(type)
-        json_value
+    private_class_method def self.parse_element_from_value(type, value)
+      if %i(integer boolean).include?(type) && !value.is_a?(String)
+        value
       elsif type.instance_of?(Symbol)
-        parse_string(type, json_value)
+        parse_string(type, value)
       elsif type.instance_of?(Array)
-        raise DeserializationError unless json_value.respond_to?(:map)
-        json_value.map {|element|
-          type.first.from_json_data(element)
+        raise DeserializationError unless value.respond_to?(:map)
+        value.map {|element|
+          type.first.from_hash(element)
         }
       elsif type.ancestors.include?(Entity)
-        type.from_json_data(json_value)
+        type.from_hash(value)
       end
+    end
+
+    private_class_method def self.extract_json_hash(json_hash)
+      [json_hash["entity_data"]]
     end
 
     # @param [String] name property name to parse

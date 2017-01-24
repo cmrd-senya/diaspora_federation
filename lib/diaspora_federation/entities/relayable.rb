@@ -203,24 +203,16 @@ module DiasporaFederation
           populate_entity(root_node)
         end
 
-        def from_json_hash(json_hash)
-          from_json_sanity_validation(json_hash)
-          from_json_data(json_hash["entity_data"], json_hash["property_order"])
-        end
+        def from_hash(properties_hash, property_order)
+          return if properties_hash.nil?
 
-        def from_json_data(json_entity_data, property_order)
-          return if json_entity_data.nil?
-
-          # populate_entity {|name, type|
-          #  parse_element_from_json(type, json_entity_data[name.to_s])
-          # }
           entity_data = {}
           additional_xml_elements = {}
-          json_entity_data.each do |property_name, value|
+          properties_hash.each do |property_name, value|
             property = find_property_for_xml_name(property_name)
 
             if property
-              entity_data[property] = parse_element_from_json(class_props[property], value)
+              entity_data[property] = parse_element_from_value(class_props[property], value)
             else
               additional_xml_elements[property_name] = value
             end
@@ -281,6 +273,10 @@ module DiasporaFederation
         def from_json_sanity_validation(json_hash)
           super
           raise DiasporaFederation::Entity::DeserializationError if json_hash["property_order"].nil?
+        end
+
+        def extract_json_hash(json_hash)
+          [json_hash["entity_data"], json_hash["property_order"]]
         end
       end
 
