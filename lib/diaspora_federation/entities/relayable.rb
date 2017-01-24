@@ -203,6 +203,13 @@ module DiasporaFederation
           populate_entity(root_node)
         end
 
+        # Does the same job as Entity.from_hash except of the following differences:
+        # 1) unknown properties from the properties_hash are stored to additional_xml_elements of the relayable instance
+        # 2) property_order is used as the order in which properties are composed to compute signatures
+        # 3) parent entity fetch is attempted
+        # 4) signatures verification is performed
+        #
+        # @see Entity.from_hash
         def from_hash(properties_hash, property_order)
           return if properties_hash.nil?
 

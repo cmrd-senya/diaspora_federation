@@ -171,8 +171,19 @@ module DiasporaFederation
       from_json_hash(JSON.parse(json))
     end
 
-    # Creates an instance of self, filling it with data from "entity_data" object of a parsed JSON
-    # @param [Hash] json_entity_data A hash from "entity_data" property of the JSON object
+    # Creates an instance of self, filling it with data from a provided hash of properties.
+    #
+    # The hash format is described as following:
+    # 1) Properties of the hash are representation of the entity's class properties
+    # 2) Possible values of the hash properties depend on the types of the entity's class properties
+    # 3) Basic properties, such as booleans, strings, integers and timestamps can be represented by a string value
+    # 4) Beside that, integers and booleans can be represented by integer and boolean values respectively
+    # 5) Nested hashes are allowed to represent nested entities. Nested hashes follow the same format . Thus, the nested
+    # hashes are instantiated as Entities of the expected type using .from_hash method with the nested hash as an
+    # argument.
+    # 6) Arrays are allowed to represent array of nested entities. They are instantiated the same way as in point 5.
+    # The difference is that they are mapped to the array of entities instead.
+    # @param [Hash] properties_hash A hash of the expected format
     # @return [Entity] instance
     def self.from_hash(properties_hash)
       return if properties_hash.nil?
@@ -182,7 +193,8 @@ module DiasporaFederation
       }
     end
 
-    # TODO: documentation
+    # Creates an instance of self by parsing a hash in the format of JSON serialized object (which usually means
+    # data from a parsed JSON input).
     def self.from_json_hash(json_hash)
       from_json_sanity_validation(json_hash)
       from_hash(*extract_json_hash(json_hash))
