@@ -307,65 +307,87 @@ XML
     end
 
     describe ".from_json" do
-      context "sanity" do
-        let(:entity_class) { Entity }
-        include_examples ".from_json arguments verification"
-        include_examples "it raises error when the entity class doesn't match the entity_class property", <<-JSON
-{
-  "entity_class": "unknown_entity",
-  "entity_data": {}
-}
-JSON
+      it "raises error when input parameter isn't a valid JSON" do
+        expect { Entity.from_json("abcdef") }.to raise_error(JSON::ParserError)
+      end
+
+      it "raises error when input parameter isn't a string" do
+        expect { Entity.from_json(123) }.to raise_error(TypeError)
+        expect { Entity.from_json(:abc) }.to raise_error(TypeError)
+      end
+
+      it "parses input with JSON.parse and passes it to .from_json_hash method" do
+        parsed_input = double
+        expect(JSON).to receive(:parse).with("{}").and_return(parsed_input)
+        expect(Entity).to receive(:from_json_hash).with(parsed_input)
+        Entity.from_json("{}")
       end
 
       it_behaves_like ".from_json returns valid object" do
         let(:entity_class) { Entities::TestEntity }
         let(:entity) { entity_class.new(test: "asdf") }
       end
+    end
 
-      context "parsing" do
-        it "parses entity properties from the JSON data" do
-          now = Time.now.change(usec: 0).utc
-          json = <<-JSON
+    describe ".from_json_hash" do
+      let(:entity_class) { Entities::TestComplexEntity }
+
+      include_examples "it raises error when the entity class doesn't match the entity_class property", <<-JSON
 {
-  "entity_class": "test_complex_entity",
-  "entity_data": {
-    "test1": "abc",
-    "test2": false,
-    "test3": "def",
-    "test4": 123,
-    "test5": "#{now.iso8601}",
-    "test6": {
-      "test": "nested"
-    },
-    "multi": [
-      {"asdf": "01"},
-      {"asdf": "02"}
-    ]
-  }
+  "entity_class": "unknown_entity",
+  "entity_data": {}
 }
 JSON
-          entity = Entities::TestComplexEntity.from_json(json)
-          expect(entity).to be_an_instance_of(Entities::TestComplexEntity)
-          expect(entity.test1).to eq("abc")
-          expect(entity.test2).to eq(false)
-          expect(entity.test3).to eq("def")
-          expect(entity.test4).to eq(123)
-          expect(entity.test5).to eq(now)
-          expect(entity.test6.test).to eq("nested")
-          expect(entity.multi[0].asdf).to eq("01")
-          expect(entity.multi[1].asdf).to eq("02")
-        end
 
-        let(:entity_class) { Entities::TestComplexEntity }
-        include_examples ".from_json parse error", "entity_class is missing", '{"entity_data": {}}'
-        include_examples ".from_json parse error", "entity_data is missing", '{"entity_class": "test_complex_entity"}'
+      include_examples ".from_json parse error", "entity_class is missing", '{"entity_data": {}}'
+      include_examples ".from_json parse error", "entity_data is missing", '{"entity_class": "test_complex_entity"}'
+
+      it "calls .from_hash with the entity_data of json hash" do
+        expect(Entity).to receive(:from_hash).with(property: "value")
+        Entity.from_json_hash(
+          "entity_class" => "entity",
+          "entity_data"  => {
+            property: "value"
+          }
+        )
+      end
+    end
+
+    describe ".from_hash" do
+      it "parses entity properties from the input data" do
+        now = Time.now.change(usec: 0).utc
+        entity_data = JSON.parse <<-JSON
+{
+  "test1": "abc",
+  "test2": false,
+  "test3": "def",
+  "test4": 123,
+  "test5": "#{now.iso8601}",
+  "test6": {
+    "test": "nested"
+  },
+  "multi": [
+    {"asdf": "01"},
+    {"asdf": "02"}
+  ]
+}
+JSON
+        entity = Entities::TestComplexEntity.from_hash(entity_data)
+        expect(entity).to be_an_instance_of(Entities::TestComplexEntity)
+        expect(entity.test1).to eq("abc")
+        expect(entity.test2).to eq(false)
+        expect(entity.test3).to eq("def")
+        expect(entity.test4).to eq(123)
+        expect(entity.test5).to eq(now)
+        expect(entity.test6.test).to eq("nested")
+        expect(entity.multi[0].asdf).to eq("01")
+        expect(entity.multi[1].asdf).to eq("02")
       end
 
       it "calls a constructor of the entity of the appropriate type" do
-        json = '{"entity_class": "test_default_entity", "entity_data": {"test1": "abc", "test2": "123"}}'
+        entity_data = JSON.parse '{"test1": "abc", "test2": "123"}'
         expect(Entities::TestDefaultEntity).to receive(:new).with(test1: "abc", test2: "123")
-        Entities::TestDefaultEntity.from_json(json)
+        Entities::TestDefaultEntity.from_hash(entity_data)
       end
     end
 

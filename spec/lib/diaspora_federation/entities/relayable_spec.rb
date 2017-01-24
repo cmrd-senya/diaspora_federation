@@ -454,9 +454,25 @@ XML
 
     describe ".from_json" do
       let(:entity_class) { SomeRelayable }
-      context "sanity" do
-        include_examples ".from_json arguments verification"
-        include_examples "it raises error when the entity class doesn't match the entity_class property", <<-JSON
+      let(:entity) { entity_class.new(hash) }
+
+      before do
+        expect_callback(:fetch_related_entity, "Parent", parent_guid).and_return(remote_parent)
+        expect_callback(:fetch_public_key, author).and_return(author_pkey.public_key)
+        expect_callback(:fetch_public_key, remote_parent.author).and_return(parent_pkey.public_key)
+        expect_callback(:fetch_private_key, author).and_return(author_pkey)
+        expect_callback(:fetch_private_key, local_parent.author).and_return(parent_pkey)
+      end
+
+      include_examples ".from_json returns valid object"
+    end
+
+    # .from_json_hash isn't overridden in the relayable, however some of the logic within some underlying private
+    # methods are overridden so we should test it here as well
+    describe ".from_json_hash" do
+      let(:entity_class) { SomeRelayable }
+
+      include_examples "it raises error when the entity class doesn't match the entity_class property", <<-JSON
 {
   "entity_class": "unknown_entity",
   "entity_data": {},
@@ -464,11 +480,25 @@ XML
 }
 JSON
 
-        include_examples ".from_json parse error", "entity_class is missing", '{"entity_data": {}}'
-        include_examples ".from_json parse error", "entity_data is missing", '{"entity_class": "some_relayable"}'
-        include_examples ".from_json parse error", "property_order is missing",
-                         '{"entity_class": "some_relayable", "entity_data": {}}'
+      include_examples ".from_json parse error", "entity_class is missing", '{"entity_data": {}}'
+      include_examples ".from_json parse error", "entity_data is missing", '{"entity_class": "some_relayable"}'
+      include_examples ".from_json parse error", "property_order is missing",
+                       '{"entity_class": "some_relayable", "entity_data": {}}'
+
+      it "calls .from_hash with properties and property order" do
+        expect(SomeRelayable).to receive(:from_hash).with({property: "value"}, ["property"])
+        SomeRelayable.from_json_hash(
+          "entity_class"   => "some_relayable",
+          "property_order" => ["property"],
+          "entity_data"    => {
+            property: "value"
+          }
+        )
       end
+    end
+
+    describe ".from_hash" do
+      let(:entity_class) { SomeRelayable }
 
       context "parsing" do
         before do
@@ -477,38 +507,27 @@ JSON
           expect_callback(:fetch_public_key, remote_parent.author).and_return(parent_pkey.public_key)
         end
 
-        it_behaves_like ".from_json returns valid object" do
-          let(:entity) {
-            expect_callback(:fetch_private_key, author).and_return(author_pkey)
-            expect_callback(:fetch_private_key, local_parent.author).and_return(parent_pkey)
-            entity_class.new(hash)
-          }
-        end
-
         context "when JSON properties are sorted and there is an unknown property" do
           let(:new_signature_data) { "#{author};#{guid};#{parent_guid};#{new_property};#{property}" }
           let(:author_signature) { sign_with_key(author_pkey, new_signature_data) }
           let(:parent_author_signature) { sign_with_key(parent_pkey, new_signature_data) }
-          let(:json) {
-            <<-JSON
+          let(:entity_data) {
+            JSON.parse <<-JSON
 {
-  "entity_class": "some_relayable",
-  "entity_data": {
-    "author": "#{author}",
-    "guid": "#{guid}",
-    "parent_guid": "#{parent_guid}",
-    "new_property": "#{new_property}",
-    "property": "#{property}",
-    "author_signature": "#{author_signature}",
-    "parent_author_signature": "#{parent_author_signature}"
-  },
-  "property_order": ["author", "guid", "parent_guid", "new_property", "property"]
+  "author": "#{author}",
+  "guid": "#{guid}",
+  "parent_guid": "#{parent_guid}",
+  "new_property": "#{new_property}",
+  "property": "#{property}",
+  "author_signature": "#{author_signature}",
+  "parent_author_signature": "#{parent_author_signature}"
 }
 JSON
           }
+          let(:property_order) { JSON.parse '["author", "guid", "parent_guid", "new_property", "property"]' }
 
-          it "parses entity properties from the JSON data" do
-            entity = SomeRelayable.from_json(json)
+          it "parses entity properties from the input data" do
+            entity = SomeRelayable.from_hash(entity_data, property_order)
             expect(entity).to be_an_instance_of SomeRelayable
             expect(entity.author).to eq(author)
             expect(entity.guid).to eq(guid)
@@ -519,12 +538,12 @@ JSON
           end
 
           it "makes unknown properties available via #additional_xml_elements" do
-            entity = SomeRelayable.from_json(json)
+            entity = SomeRelayable.from_hash(entity_data, property_order)
             expect(entity.additional_xml_elements).to eq("new_property" => new_property)
           end
 
-          it "hands over the order in the json to the instance without signatures" do
-            entity = SomeRelayable.from_json(json)
+          it "hands over the order in the data to the instance without signatures" do
+            entity = SomeRelayable.from_hash(entity_data, property_order)
             expect(entity.xml_order).to eq(%w(author guid parent_guid new_property property))
           end
 
@@ -542,27 +561,24 @@ JSON
               %w(author guid parent_guid new_property property),
               "new_property" => new_property
             ).and_call_original
-            SomeRelayable.from_json(json)
+            SomeRelayable.from_hash(entity_data, property_order)
           end
         end
 
         it "creates Entity with empty 'additional_xml_elements' if the xml has only known properties" do
-          json = <<-JSON
+          property_order = JSON.parse '["guid", "author", "property", "parent_guid"]'
+          entity_data = JSON.parse <<-JSON
 {
-  "entity_class": "some_relayable",
-  "entity_data": {
-    "guid": "#{guid}",
-    "author": "#{author}",
-    "property": "#{property}",
-    "parent_guid": "#{parent_guid}",
-    "author_signature": "#{sign_with_key(author_pkey, legacy_signature_data)}",
-    "parent_author_signature": "#{sign_with_key(parent_pkey, legacy_signature_data)}"
-  },
-  "property_order": ["guid", "author", "property", "parent_guid"]
+  "guid": "#{guid}",
+  "author": "#{author}",
+  "property": "#{property}",
+  "parent_guid": "#{parent_guid}",
+  "author_signature": "#{sign_with_key(author_pkey, legacy_signature_data)}",
+  "parent_author_signature": "#{sign_with_key(parent_pkey, legacy_signature_data)}"
 }
 JSON
 
-          entity = SomeRelayable.from_json(json)
+          entity = SomeRelayable.from_hash(entity_data, property_order)
 
           expect(entity).to be_an_instance_of SomeRelayable
           expect(entity.additional_xml_elements).to be_empty
@@ -571,25 +587,22 @@ JSON
 
       context "relayable signature verification feature support" do
         it "calls signatures verification on relayable unpack" do
-          json = <<-JSON
+          property_order = JSON.parse '["guid", "author", "property", "parent_guid"]'
+          entity_data = JSON.parse <<-JSON
 {
-  "entity_class": "some_relayable",
-  "entity_data": {
-    "guid": "#{guid}",
-    "author": "#{author}",
-    "property": "#{property}",
-    "parent_guid": "#{parent_guid}",
-    "author_signature": "aa",
-    "parent_author_signature": "bb"
-  },
-  "property_order": ["guid", "author", "property", "parent_guid"]
+  "guid": "#{guid}",
+  "author": "#{author}",
+  "property": "#{property}",
+  "parent_guid": "#{parent_guid}",
+  "author_signature": "aa",
+  "parent_author_signature": "bb"
 }
 JSON
 
           expect_callback(:fetch_related_entity, "Parent", parent_guid).and_return(remote_parent)
           expect_callback(:fetch_public_key, author).and_return(author_pkey.public_key)
           expect {
-            SomeRelayable.from_json(json)
+            SomeRelayable.from_hash(entity_data, property_order)
           }.to raise_error DiasporaFederation::Entities::Relayable::SignatureVerificationFailed
         end
       end

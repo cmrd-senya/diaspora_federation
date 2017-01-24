@@ -147,17 +147,6 @@ shared_examples "JSON is parsable with #from_json" do
   end
 end
 
-shared_examples ".from_json arguments verification" do
-  it "raises error when input parameter isn't a valid JSON" do
-    expect { entity_class.from_json("abcdef") }.to raise_error(JSON::ParserError)
-  end
-
-  it "raises error when input parameter isn't a string" do
-    expect { entity_class.from_json(123) }.to raise_error(TypeError)
-    expect { entity_class.from_json(:abc) }.to raise_error(TypeError)
-  end
-end
-
 shared_examples "it raises error when the entity class doesn't match the entity_class property" do |faulty_json|
   it "raises error when the entity class doesn't match the entity_class property" do
     expect {
