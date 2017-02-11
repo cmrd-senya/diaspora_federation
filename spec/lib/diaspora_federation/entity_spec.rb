@@ -273,16 +273,6 @@ XML
     end
 
     describe "#to_json" do
-      it "calls #to_json_hash and returns it's output converted to JSON" do
-        json_hash = double
-        expect(json_hash).to receive(:to_json)
-        instance = Entities::TestDefaultEntity.new(data).dup # we need dup to unfreeze the object
-        expect(instance).to receive(:to_json_hash).and_return(json_hash)
-        instance.to_json
-      end
-    end
-
-    describe "#to_json_hash" do
       let(:hash) {
         {
           test1: "123",
@@ -300,36 +290,13 @@ XML
         }
       }
       let(:entity_class) { Entities::TestComplexEntity }
-      let(:json) { entity_class.new(hash).to_json_hash.to_json }
+      let(:json) { entity_class.new(hash).to_json.to_json }
 
       include_examples "common Entity JSON expectations"
       include_examples "JSON is parsable with #from_json"
     end
 
     describe ".from_json" do
-      it "raises error when input parameter isn't a valid JSON" do
-        expect { Entity.from_json("abcdef") }.to raise_error(JSON::ParserError)
-      end
-
-      it "raises error when input parameter isn't a string" do
-        expect { Entity.from_json(123) }.to raise_error(TypeError)
-        expect { Entity.from_json(:abc) }.to raise_error(TypeError)
-      end
-
-      it "parses input with JSON.parse and passes it to .from_json_hash method" do
-        parsed_input = double
-        expect(JSON).to receive(:parse).with("{}").and_return(parsed_input)
-        expect(Entity).to receive(:from_json_hash).with(parsed_input)
-        Entity.from_json("{}")
-      end
-
-      it_behaves_like ".from_json returns valid object" do
-        let(:entity_class) { Entities::TestEntity }
-        let(:entity) { entity_class.new(test: "asdf") }
-      end
-    end
-
-    describe ".from_json_hash" do
       let(:entity_class) { Entities::TestComplexEntity }
 
       include_examples "it raises error when the entity class doesn't match the entity_class property", <<-JSON
@@ -344,7 +311,7 @@ JSON
 
       it "calls .from_hash with the entity_data of json hash" do
         expect(Entity).to receive(:from_hash).with(property: "value")
-        Entity.from_json_hash(
+        Entity.from_json(
           "entity_class" => "entity",
           "entity_data"  => {
             property: "value"

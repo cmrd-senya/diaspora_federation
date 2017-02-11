@@ -96,7 +96,7 @@ module DiasporaFederation
         "#{super}#{":#{parent_type}" if respond_to?(:parent_type)}:#{parent_guid}"
       end
 
-      def to_json_hash
+      def to_json
         super.merge!(property_order: signature_order).tap {|json_hash|
           missing_properties = json_hash[:property_order] - json_hash[:entity_data].keys
           missing_data = missing_properties.map {|property|
@@ -195,14 +195,6 @@ module DiasporaFederation
 
       # Override class methods from {Entity} to parse the xml
       module ParseXML
-        # @param [Nokogiri::XML::Element] root_node xml nodes
-        # @return [Entity] instance
-        def from_xml(root_node)
-          from_xml_sanity_validation(root_node)
-
-          populate_entity(root_node)
-        end
-
         # Does the same job as Entity.from_hash except of the following differences:
         # 1) unknown properties from the properties_hash are stored to additional_xml_elements of the relayable instance
         # 2) property_order is used as the order in which properties are composed to compute signatures
@@ -212,7 +204,11 @@ module DiasporaFederation
         # @see Entity.from_hash
         def from_hash(properties_hash, property_order)
           return if properties_hash.nil?
-
+          property_order = properties_hash.keys if property_order.nil?
+          # Use all known properties to build the Entity (entity_data). All additional xml elements
+          # are respected and attached to a hash as string (additional_xml_elements). It also remembers
+          # the order of the xml-nodes (xml_order). This is needed to support receiving objects from
+          # the future versions of diaspora*, where new elements may have been added.
           entity_data = {}
           additional_xml_elements = {}
           properties_hash.each do |property_name, value|
@@ -230,33 +226,6 @@ module DiasporaFederation
         end
 
         private
-
-        # @param [Nokogiri::XML::Element] root_node xml nodes
-        # @return [Entity] instance
-        def populate_entity(root_node)
-          # Use all known properties to build the Entity (entity_data). All additional xml elements
-          # are respected and attached to a hash as string (additional_xml_elements). It also remembers
-          # the order of the xml-nodes (xml_order). This is needed to support receiving objects from
-          # the future versions of diaspora*, where new elements may have been added.
-          entity_data = {}
-          additional_xml_elements = {}
-
-          xml_order = root_node.element_children.map do |child|
-            xml_name = child.name
-            property = find_property_for_xml_name(xml_name)
-
-            if property
-              entity_data[property] = parse_element_from_node(xml_name, class_props[property], root_node)
-              property
-            else
-              additional_xml_elements[xml_name] = child.text
-              xml_name
-            end
-          end
-
-          fetch_parent(entity_data)
-          new(entity_data, xml_order, additional_xml_elements).tap(&:verify_signatures)
-        end
 
         def fetch_parent(data)
           type = data.fetch(:parent_type) {
@@ -283,7 +252,12 @@ module DiasporaFederation
         end
 
         def extract_json_hash(json_hash)
-          [json_hash["entity_data"], json_hash["property_order"]]
+          super.push(json_hash["property_order"])
+        end
+
+        def extract_xml(root_node)
+          hash = xml2hash(root_node)
+          [hash, hash.keys]
         end
       end
 

@@ -32,10 +32,8 @@ module DiasporaFederation
       # @see Entity.populate_entity
       # @param [Nokogiri::XML::Element] root_node xml nodes
       # @return [Entity] instance
-      private_class_method def self.populate_entity(root_node)
-        new(entity_data {|name, type|
-          parse_element_from_node(name, type, root_node)
-        }.merge(parent: nil)).tap(&:validate_parent)
+      def self.from_hash(hash, _order=nil)
+        new(entity_data(hash).merge(parent: nil)).tap(&:validate_parent)
       end
 
       # Raised, if the parent is not owned by the receiving pod.

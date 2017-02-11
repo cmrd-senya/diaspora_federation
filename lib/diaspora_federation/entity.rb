@@ -110,10 +110,7 @@ module DiasporaFederation
     # @return [Entity] instance
     def self.from_xml(root_node)
       from_xml_sanity_validation(root_node)
-
-      populate_entity {|name, type|
-        parse_element_from_node(name, type, root_node)
-      }
+      from_hash(*extract_xml(root_node))
     end
 
     # Makes an underscored, lowercase form of the class name
@@ -151,24 +148,13 @@ module DiasporaFederation
     end
 
     # Might be used to modify entity JSON object just before serialization
+    # TODO: think on a possibility to create JsonHash derived from Hash which makes JSON on to_s call
     # @return [Hash] Returns a hash that is equal by structure to the entity in JSON format
-    def to_json_hash
+    def to_json
       {
         entity_class: self.class.entity_name,
         entity_data:  json_data
       }
-    end
-
-    # @return [String] Renders the entity to the JSON representation
-    def to_json
-      to_json_hash.to_json
-    end
-
-    # Deserialization of an Entity object from JSON format
-    # @param [String] json
-    # @return [Entity] instance
-    def self.from_json(json)
-      from_json_hash(JSON.parse(json))
     end
 
     # Creates an instance of self, filling it with data from a provided hash of properties.
@@ -187,17 +173,31 @@ module DiasporaFederation
     # @return [Entity] instance
     def self.from_hash(properties_hash)
       return if properties_hash.nil?
-
-      populate_entity {|name, type|
-        parse_element_from_value(type, properties_hash[name.to_s])
-      }
+      populate_entity(properties_hash)
     end
 
     # Creates an instance of self by parsing a hash in the format of JSON serialized object (which usually means
     # data from a parsed JSON input).
-    def self.from_json_hash(json_hash)
+    # TODO: currently we don't use nested relayables with JSON, however if we do
+    # TODO: we have to find a way to pass order information to from_json of nested hashes.
+    # TODO: As an option we can sort nested relayables hashes using properties_order and consider
+    # TODO: the hash sorting as a source of the signature order information.
+    def self.from_json(json_hash)
       from_json_sanity_validation(json_hash)
       from_hash(*extract_json_hash(json_hash))
+    end
+
+    def self.xml2hash(root_node)
+      root_node.element_children.map {|child|
+        xml_name = child.name
+        property = find_property_for_xml_name(xml_name)
+        if property
+          type = class_props[property]
+          [property.to_s, parse_element_from_node(xml_name, type, root_node)]
+        else
+          [xml_name, child.text]
+        end
+      }.to_h
     end
 
     private
@@ -319,9 +319,9 @@ module DiasporaFederation
       enriched_properties.map {|key, value|
         type = self.class.class_props[key]
 
-        if type.instance_of?(Class) && value.respond_to?(:to_json_hash)
-          entity_data = value.to_json_hash[:entity_data]
-          [key, entity_data] unless entity_data.nil?
+        if type.instance_of?(Class) && value.respond_to?(:to_json)
+          entity_data = value.to_json[:entity_data] unless value.nil?
+          [key, entity_data]
         else
           [key, value]
         end
@@ -329,25 +329,26 @@ module DiasporaFederation
     end
 
     # @return [Entity] instance
-    private_class_method def self.populate_entity(&parser)
-      new(entity_data(&parser))
+    private_class_method def self.populate_entity(properties_hash)
+      new(entity_data(properties_hash))
     end
 
     # @yield
     # @return [Hash] entity data
-    private_class_method def self.entity_data
+    private_class_method def self.entity_data(properties_hash)
       class_props.map {|name, type|
-        value = yield(name, type)
+        value = parse_element_from_value(type, properties_hash[name.to_s])
         [name, value] unless value.nil?
       }.compact.to_h
     end
 
     private_class_method def self.parse_element_from_value(type, value)
-      if %i(integer boolean).include?(type) && !value.is_a?(String)
+      if %i(integer boolean timestamp).include?(type) && !value.is_a?(String)
         value
       elsif type.instance_of?(Symbol)
         parse_string(type, value)
       elsif type.instance_of?(Array)
+        return if value.nil?
         raise DeserializationError unless value.respond_to?(:map)
         value.map {|element|
           type.first.from_hash(element)
@@ -415,7 +416,11 @@ module DiasporaFederation
     # @return [Entity] parsed child entity
     private_class_method def self.parse_entity_from_node(type, root_node)
       node = root_node.xpath(type.entity_name)
-      type.from_xml(node.first) if node.any? && node.first.children.any?
+      type.xml2hash(node.first) if node.any? && node.first.children.any?
+    end
+
+    private_class_method def self.extract_xml(root_node)
+      [xml2hash(root_node)]
     end
 
     # Collect all nested children of that type and create an array in the data hash
@@ -425,7 +430,7 @@ module DiasporaFederation
     # @return [Array<Entity>] array with parsed child entities
     private_class_method def self.parse_array_from_node(type, root_node)
       node = root_node.xpath(type.entity_name)
-      node.select {|child| child.children.any? }.map {|child| type.from_xml(child) } unless node.empty?
+      node.select {|child| child.children.any? }.map {|child| type.xml2hash(child) } unless node.empty?
     end
 
     private_class_method def self.assert_parsability_of(entity_class)

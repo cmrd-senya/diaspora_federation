@@ -29,7 +29,7 @@ module DiasporaFederation
         nil
       end
 
-      def to_json_hash
+      def to_json
         {}
       end
     end

@@ -281,7 +281,7 @@ XML
         it "hand over the order in the xml to the instance without signatures" do
           entity = SomeRelayable.from_xml(Nokogiri::XML::Document.parse(new_xml).root)
 
-          expect(entity.xml_order).to eq([:author, :guid, :parent_guid, "new_property", :property])
+          expect(entity.xml_order).to eq(%w(author guid parent_guid new_property property))
         end
 
         it "creates Entity with empty 'additional_xml_elements' if the xml has only known properties" do
@@ -359,10 +359,10 @@ XML
       end
     end
 
-    describe "#to_json_hash" do
+    describe "#to_json" do
       let(:entity_class) { SomeRelayable }
       context "with no signatures provided" do
-        let(:json) { entity_class.new(hash).to_json_hash.to_json }
+        let(:json) { entity_class.new(hash).to_json.to_json }
 
         before do
           expect_callback(:fetch_private_key, author).and_return(author_pkey)
@@ -381,7 +381,7 @@ XML
 
       it "contains the property order within the property_order property" do
         property_order = %i(author guid parent_guid property)
-        json = entity_class.new(hash_with_fake_signatures, property_order).to_json_hash.to_json
+        json = entity_class.new(hash_with_fake_signatures, property_order).to_json.to_json
 
         expect(json).to include_json(property_order: property_order.map(&:to_s))
       end
@@ -389,14 +389,14 @@ XML
       it "uses legacy order for filling property_order when no xml_order supplied" do
         entity = entity_class.new(hash_with_fake_signatures)
         expect(
-          entity.to_json_hash.to_json
+          entity.to_json.to_json
         ).to include_json(property_order: entity_class::LEGACY_SIGNATURE_ORDER.map(&:to_s))
       end
 
       it "adds new unknown elements to the json again" do
         property_order = [:author, :guid, :parent_guid, :property, "new_property"]
         json = SomeRelayable.new(hash_with_fake_signatures, property_order, "new_property" => new_property)
-                            .to_json_hash.to_json
+                            .to_json.to_json
 
         expect(json).to include_json(
           entity_data:    {new_property: new_property},
@@ -406,7 +406,7 @@ XML
 
       it "adds missing properties from property order to json" do
         property_order = [:author, :guid, :parent_guid, :property, "new_property"]
-        json = SomeRelayable.new(hash_with_fake_signatures, property_order).to_json_hash.to_json
+        json = SomeRelayable.new(hash_with_fake_signatures, property_order).to_json.to_json
 
         expect(json).to include_json(
           entity_data:    {new_property: nil},
@@ -421,7 +421,7 @@ XML
         property_order = [:author, :guid, :parent_guid, "new_property", :property]
         signature_data_with_new_property = "#{author};#{guid};#{parent_guid};#{new_property};#{property}"
 
-        json_hash = SomeRelayable.new(hash, property_order, "new_property" => new_property).to_json_hash
+        json_hash = SomeRelayable.new(hash, property_order, "new_property" => new_property).to_json
         author_signature = json_hash[:entity_data][:author_signature]
         parent_author_signature = json_hash[:entity_data][:parent_author_signature]
 
@@ -430,7 +430,7 @@ XML
       end
 
       it "doesn't change signatures if they are already set" do
-        json = SomeRelayable.new(hash_with_fake_signatures).to_json_hash.to_json
+        json = SomeRelayable.new(hash_with_fake_signatures).to_json.to_json
         expect(json).to include_json(entity_data: {author_signature: "aa"})
         expect(json).to include_json(entity_data: {parent_author_signature: "bb"})
       end
@@ -439,7 +439,7 @@ XML
         expect_callback(:fetch_private_key, author).and_return(nil)
 
         expect {
-          SomeRelayable.new(hash).to_json_hash
+          SomeRelayable.new(hash).to_json
         }.to raise_error Entities::Relayable::AuthorPrivateKeyNotFound
       end
 
@@ -447,7 +447,7 @@ XML
         expect_callback(:fetch_private_key, author).and_return(author_pkey)
         expect_callback(:fetch_private_key, local_parent.author).and_return(nil)
 
-        json = SomeRelayable.new(hash).to_json_hash.to_json
+        json = SomeRelayable.new(hash).to_json.to_json
         expect(json).to include_json(entity_data: {parent_author_signature: ""})
       end
     end
@@ -469,7 +469,7 @@ XML
 
     # .from_json_hash isn't overridden in the relayable, however some of the logic within some underlying private
     # methods are overridden so we should test it here as well
-    describe ".from_json_hash" do
+    describe ".from_json" do
       let(:entity_class) { SomeRelayable }
 
       include_examples "it raises error when the entity class doesn't match the entity_class property", <<-JSON
@@ -487,7 +487,7 @@ JSON
 
       it "calls .from_hash with properties and property order" do
         expect(SomeRelayable).to receive(:from_hash).with({property: "value"}, ["property"])
-        SomeRelayable.from_json_hash(
+        SomeRelayable.from_json(
           "entity_class"   => "some_relayable",
           "property_order" => ["property"],
           "entity_data"    => {

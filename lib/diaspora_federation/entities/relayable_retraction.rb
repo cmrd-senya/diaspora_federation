@@ -69,14 +69,14 @@ module DiasporaFederation
         "RelayableRetraction:#{target_type}:#{target_guid}"
       end
 
-      private
-
       # @return [Retraction] instance
-      private_class_method def self.populate_entity(&block)
-        entity_data = entity_data(&block)
+      def self.populate_entity(hash)
+        entity_data = entity_data(hash)
         entity_data[:target] = Retraction.send(:fetch_target, entity_data[:target_type], entity_data[:target_guid])
         new(entity_data).to_retraction
       end
+
+      private
 
       # It updates also the signatures with the keys of the author and the parent
       # if the signatures are not there yet and if the keys are available.

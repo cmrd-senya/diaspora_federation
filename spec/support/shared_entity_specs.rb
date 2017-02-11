@@ -123,7 +123,7 @@ end
 shared_examples "#to_json output matches JSON schema" do
   it "#to_json output matches JSON schema" do
     json = described_class.new(data).to_json
-    expect(json).to match_json_schema(:entity_schema)
+    expect(json.to_json).to match_json_schema(:entity_schema)
   end
 end
 
@@ -142,7 +142,7 @@ end
 shared_examples "JSON is parsable with #from_json" do
   it "is parsable with #from_json" do
     expect {
-      entity_class.from_json(json)
+      entity_class.from_json(JSON.parse json)
     }.not_to raise_error
   end
 end
@@ -150,7 +150,7 @@ end
 shared_examples "it raises error when the entity class doesn't match the entity_class property" do |faulty_json|
   it "raises error when the entity class doesn't match the entity_class property" do
     expect {
-      entity_class.from_json(faulty_json)
+      entity_class.from_json(JSON.parse faulty_json)
     }.to raise_error DiasporaFederation::Entity::InvalidRootNode,
                      "'unknown_entity' can't be parsed by #{entity_class}"
   end
@@ -158,15 +158,15 @@ end
 
 shared_examples ".from_json returns valid object" do
   it "from_json(entity_json).to_json should match entity.to_json" do
-    entity_json = entity.to_json
-    expect(entity_class.from_json(entity_json).to_json).to eq(entity_json)
+    entity_json = entity.to_json.to_json
+    expect(entity_class.from_json(JSON.parse(entity_json)).to_json.to_json).to eq(entity_json)
   end
 end
 
 shared_examples ".from_json parse error" do |example_name, json|
   it "raises error when #{example_name}" do
     expect {
-      entity_class.from_json(json)
+      entity_class.from_json(JSON.parse  json)
     }.to raise_error DiasporaFederation::Entity::DeserializationError
   end
 end

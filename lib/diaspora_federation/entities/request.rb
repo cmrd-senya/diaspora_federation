@@ -30,8 +30,8 @@ module DiasporaFederation
       end
 
       # @return [Retraction] instance
-      private_class_method def self.populate_entity(&block)
-        super(&block).to_contact
+      def self.from_hash(hash)
+        super.to_contact
       end
     end
   end

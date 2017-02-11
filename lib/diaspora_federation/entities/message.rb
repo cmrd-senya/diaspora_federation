@@ -38,6 +38,16 @@ module DiasporaFederation
         super.tap {|hash| hash[:created_at] = created_at.utc.iso8601 }
       end
 
+      # Default implementation, don't verify signatures for a {Message}.
+      # @see Entity.populate_entity
+      # @deprecated remove after {Message} doesn't include {Relayable} anymore
+      # @param [Hash] properties hash
+      # TODO: add link to hash format spec
+      # @return [Entity] instance
+      def self.from_hash(hash, _order=nil)
+        new({parent_guid: nil, parent: nil}.merge(entity_data(hash)))
+      end
+
       private
 
       # @deprecated remove after {Message} doesn't include {Relayable} anymore
@@ -61,17 +71,6 @@ module DiasporaFederation
         else
           super
         end
-      end
-
-      # Default implementation, don't verify signatures for a {Message}.
-      # @see Entity.populate_entity
-      # @deprecated remove after {Message} doesn't include {Relayable} anymore
-      # @param [Nokogiri::XML::Element] root_node xml nodes
-      # @return [Entity] instance
-      private_class_method def self.populate_entity(root_node)
-        new({parent_guid: nil, parent: nil}.merge(entity_data {|name, type|
-          parse_element_from_node(name, type, root_node)
-        }))
       end
     end
   end
