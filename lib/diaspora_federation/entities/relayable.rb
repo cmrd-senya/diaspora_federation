@@ -204,22 +204,13 @@ module DiasporaFederation
         # @see Entity.from_hash
         def from_hash(properties_hash, property_order)
           return if properties_hash.nil?
-          property_order = properties_hash.keys if property_order.nil?
+          #property_order = properties_hash.keys if property_order.nil?
           # Use all known properties to build the Entity (entity_data). All additional xml elements
           # are respected and attached to a hash as string (additional_xml_elements). It also remembers
           # the order of the xml-nodes (xml_order). This is needed to support receiving objects from
           # the future versions of diaspora*, where new elements may have been added.
-          entity_data = {}
-          additional_xml_elements = {}
-          properties_hash.each do |property_name, value|
-            property = find_property_for_xml_name(property_name)
-
-            if property
-              entity_data[property] = parse_element_from_value(class_props[property], value)
-            else
-              additional_xml_elements[property_name] = value
-            end
-          end
+          entity_data = properties_hash
+          additional_xml_elements = entity_data.slice!(*class_props.keys)
 
           fetch_parent(entity_data)
           new(entity_data, property_order, additional_xml_elements).tap(&:verify_signatures)
@@ -246,18 +237,12 @@ module DiasporaFederation
           data[:parent] = DiasporaFederation.callbacks.trigger(:fetch_related_entity, type, guid)
         end
 
-        def from_json_sanity_validation(json_hash)
-          super
-          raise DiasporaFederation::Entity::DeserializationError if json_hash["property_order"].nil?
+        def xml_parser_class
+          DiasporaFederation::Parsers::RelayableXmlParser
         end
 
-        def extract_json_hash(json_hash)
-          super.push(json_hash["property_order"])
-        end
-
-        def extract_xml(root_node)
-          hash = xml2hash(root_node)
-          [hash, hash.keys]
+        def json_parser_class
+          DiasporaFederation::Parsers::RelayableJsonParser
         end
       end
 

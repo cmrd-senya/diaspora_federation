@@ -132,7 +132,7 @@ XML
 
           expect {
             Entity.from_xml(Nokogiri::XML::Document.parse(xml).root)
-          }.to raise_error Entity::InvalidRootNode, "'unknown_entity' can't be parsed by DiasporaFederation::Entity"
+          }.to raise_error Parsers::BaseParser::InvalidRootNode, "'unknown_entity' can't be parsed by DiasporaFederation::Entity"
         end
       end
 
@@ -323,22 +323,21 @@ JSON
     describe ".from_hash" do
       it "parses entity properties from the input data" do
         now = Time.now.change(usec: 0).utc
-        entity_data = JSON.parse <<-JSON
-{
-  "test1": "abc",
-  "test2": false,
-  "test3": "def",
-  "test4": 123,
-  "test5": "#{now.iso8601}",
-  "test6": {
-    "test": "nested"
-  },
-  "multi": [
-    {"asdf": "01"},
-    {"asdf": "02"}
-  ]
-}
-JSON
+        entity_data = {
+          test1: "abc",
+          test2: false,
+          test3: "def",
+          test4: 123,
+          test5: now,
+          test6: {
+            test: "nested"
+          },
+          multi: [
+            {asdf: "01"},
+            {asdf: "02"}
+          ]
+        }
+
         entity = Entities::TestComplexEntity.from_hash(entity_data)
         expect(entity).to be_an_instance_of(Entities::TestComplexEntity)
         expect(entity.test1).to eq("abc")
@@ -352,7 +351,7 @@ JSON
       end
 
       it "calls a constructor of the entity of the appropriate type" do
-        entity_data = JSON.parse '{"test1": "abc", "test2": "123"}'
+        entity_data = {test1: "abc", test2: "123"}
         expect(Entities::TestDefaultEntity).to receive(:new).with(test1: "abc", test2: "123")
         Entities::TestDefaultEntity.from_hash(entity_data)
       end

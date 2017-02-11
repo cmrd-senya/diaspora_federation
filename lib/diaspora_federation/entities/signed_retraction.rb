@@ -59,9 +59,8 @@ module DiasporaFederation
       # @param [Nokogiri::XML::Element] root_node xml nodes
       # @return [Retraction] instance
       def self.from_hash(hash)
-        entity_data = entity_data(hash)
-        entity_data[:target] = Retraction.send(:fetch_target, entity_data[:target_type], entity_data[:target_guid])
-        new(entity_data).to_retraction
+        hash[:target] = Retraction.send(:fetch_target, hash[:target_type], hash[:target_guid])
+        new(hash).to_retraction
       end
 
       # It updates also the signatures with the keys of the author and the parent

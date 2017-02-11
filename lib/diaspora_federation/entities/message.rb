@@ -45,7 +45,7 @@ module DiasporaFederation
       # TODO: add link to hash format spec
       # @return [Entity] instance
       def self.from_hash(hash, _order=nil)
-        new({parent_guid: nil, parent: nil}.merge(entity_data(hash)))
+        new({parent_guid: nil, parent: nil}.merge(hash))
       end
 
       private

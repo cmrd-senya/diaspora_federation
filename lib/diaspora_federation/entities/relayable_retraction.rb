@@ -70,10 +70,9 @@ module DiasporaFederation
       end
 
       # @return [Retraction] instance
-      def self.populate_entity(hash)
-        entity_data = entity_data(hash)
-        entity_data[:target] = Retraction.send(:fetch_target, entity_data[:target_type], entity_data[:target_guid])
-        new(entity_data).to_retraction
+      def self.from_hash(hash)
+        hash[:target] = Retraction.send(:fetch_target, hash[:target_type], hash[:target_guid])
+        new(hash).to_retraction
       end
 
       private

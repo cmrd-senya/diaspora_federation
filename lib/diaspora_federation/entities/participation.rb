@@ -33,7 +33,7 @@ module DiasporaFederation
       # @param [Nokogiri::XML::Element] root_node xml nodes
       # @return [Entity] instance
       def self.from_hash(hash, _order=nil)
-        new(entity_data(hash).merge(parent: nil)).tap(&:validate_parent)
+        new(hash.merge(parent: nil)).tap(&:validate_parent)
       end
 
       # Raised, if the parent is not owned by the receiving pod.

@@ -151,7 +151,7 @@ shared_examples "it raises error when the entity class doesn't match the entity_
   it "raises error when the entity class doesn't match the entity_class property" do
     expect {
       entity_class.from_json(JSON.parse faulty_json)
-    }.to raise_error DiasporaFederation::Entity::InvalidRootNode,
+    }.to raise_error DiasporaFederation::Parsers::BaseParser::InvalidRootNode,
                      "'unknown_entity' can't be parsed by #{entity_class}"
   end
 end
@@ -167,6 +167,6 @@ shared_examples ".from_json parse error" do |example_name, json|
   it "raises error when #{example_name}" do
     expect {
       entity_class.from_json(JSON.parse  json)
-    }.to raise_error DiasporaFederation::Entity::DeserializationError
+    }.to raise_error DiasporaFederation::Parsers::JsonParser::DeserializationError
   end
 end

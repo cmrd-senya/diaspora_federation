@@ -40,10 +40,9 @@ module DiasporaFederation
       end
 
       # @return [Retraction] instance
-      def self.populate_entity(hash)
-        entity_data = entity_data(hash)
-        entity_data[:target] = fetch_target(entity_data[:target_type], entity_data[:target_guid])
-        new(entity_data)
+      def self.from_hash(hash)
+        hash[:target] = fetch_target(hash[:target_type], hash[:target_guid])
+        new(hash)
       end
 
       private_class_method def self.fetch_target(target_type, target_guid)

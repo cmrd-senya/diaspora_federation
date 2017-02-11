@@ -35,9 +35,9 @@ module DiasporaFederation
       end
 
       # Fetch root post after parse
-      # @see Entity.populate_entity
+      # @see Entity.from_hash
       # @return [Entity] instance
-      def self.populate_entity(hash)
+      def self.from_hash(hash)
         super.tap(&:fetch_root)
       end
     end

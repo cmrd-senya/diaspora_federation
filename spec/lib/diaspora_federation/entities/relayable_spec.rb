@@ -281,7 +281,7 @@ XML
         it "hand over the order in the xml to the instance without signatures" do
           entity = SomeRelayable.from_xml(Nokogiri::XML::Document.parse(new_xml).root)
 
-          expect(entity.xml_order).to eq(%w(author guid parent_guid new_property property))
+          expect(entity.xml_order).to eq([:author, :guid, :parent_guid, "new_property", :property])
         end
 
         it "creates Entity with empty 'additional_xml_elements' if the xml has only known properties" do
@@ -512,17 +512,15 @@ JSON
           let(:author_signature) { sign_with_key(author_pkey, new_signature_data) }
           let(:parent_author_signature) { sign_with_key(parent_pkey, new_signature_data) }
           let(:entity_data) {
-            JSON.parse <<-JSON
-{
-  "author": "#{author}",
-  "guid": "#{guid}",
-  "parent_guid": "#{parent_guid}",
-  "new_property": "#{new_property}",
-  "property": "#{property}",
-  "author_signature": "#{author_signature}",
-  "parent_author_signature": "#{parent_author_signature}"
-}
-JSON
+            entity_data = {
+              guid: guid,
+              author: author,
+              property: property,
+              parent_guid: parent_guid,
+              "new_property" => new_property,
+              author_signature: author_signature,
+              parent_author_signature: parent_author_signature
+            }
           }
           let(:property_order) { JSON.parse '["author", "guid", "parent_guid", "new_property", "property"]' }
 
@@ -577,6 +575,14 @@ JSON
   "parent_author_signature": "#{sign_with_key(parent_pkey, legacy_signature_data)}"
 }
 JSON
+          entity_data = {
+            guid: guid,
+            author: author,
+            property: property,
+            parent_guid: parent_guid,
+            author_signature: sign_with_key(author_pkey, legacy_signature_data),
+            parent_author_signature: sign_with_key(parent_pkey, legacy_signature_data)
+          }
 
           entity = SomeRelayable.from_hash(entity_data, property_order)
 
@@ -598,6 +604,14 @@ JSON
   "parent_author_signature": "bb"
 }
 JSON
+          entity_data = {
+            guid: guid,
+            author: author,
+            property: property,
+            parent_guid: parent_guid,
+            author_signature: "aa",
+            parent_author_signature: "bb"
+          }
 
           expect_callback(:fetch_related_entity, "Parent", parent_guid).and_return(remote_parent)
           expect_callback(:fetch_public_key, author).and_return(author_pkey.public_key)
