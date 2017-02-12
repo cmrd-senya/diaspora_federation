@@ -156,7 +156,7 @@ end
 shared_examples "JSON is parsable with #from_json" do
   it "is parsable with #from_json" do
     expect {
-      entity_class.from_json(JSON.parse json)
+      entity_class.from_json(JSON.parse(json))
     }.not_to raise_error
   end
 end

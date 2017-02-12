@@ -1,7 +1,6 @@
 module DiasporaFederation
   module Parsers
     class JsonParser < BaseParser
-
       def parse_json(json_hash)
         from_json_sanity_validation(json_hash)
         parse_entity_data(json_hash["entity_data"])

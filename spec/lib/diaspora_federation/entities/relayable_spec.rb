@@ -504,14 +504,14 @@ XML
           let(:author_signature) { sign_with_key(author_pkey, new_signature_data) }
           let(:parent_author_signature) { sign_with_key(parent_pkey, new_signature_data) }
           let(:entity_data) {
-            entity_data = {
-              guid: guid,
-              author: author,
-              property: property,
-              parent_guid: parent_guid,
-              "new_property" => new_property,
-              author_signature: author_signature,
-              parent_author_signature: parent_author_signature
+            {
+              :guid                    => guid,
+              :author                  => author,
+              :property                => property,
+              :parent_guid             => parent_guid,
+              "new_property"           => new_property,
+              :author_signature        => author_signature,
+              :parent_author_signature => parent_author_signature
             }
           }
           let(:property_order) { JSON.parse '["author", "guid", "parent_guid", "new_property", "property"]' }
@@ -557,22 +557,13 @@ XML
 
         it "creates Entity with empty 'additional_xml_elements' if the xml has only known properties" do
           property_order = JSON.parse '["guid", "author", "property", "parent_guid"]'
-          entity_data = JSON.parse <<-JSON
-{
-  "guid": "#{guid}",
-  "author": "#{author}",
-  "property": "#{property}",
-  "parent_guid": "#{parent_guid}",
-  "author_signature": "#{sign_with_key(author_pkey, legacy_signature_data)}",
-  "parent_author_signature": "#{sign_with_key(parent_pkey, legacy_signature_data)}"
-}
-JSON
+
           entity_data = {
-            guid: guid,
-            author: author,
-            property: property,
-            parent_guid: parent_guid,
-            author_signature: sign_with_key(author_pkey, legacy_signature_data),
+            guid:                    guid,
+            author:                  author,
+            property:                property,
+            parent_guid:             parent_guid,
+            author_signature:        sign_with_key(author_pkey, legacy_signature_data),
             parent_author_signature: sign_with_key(parent_pkey, legacy_signature_data)
           }
 
@@ -597,11 +588,11 @@ JSON
 }
 JSON
           entity_data = {
-            guid: guid,
-            author: author,
-            property: property,
-            parent_guid: parent_guid,
-            author_signature: "aa",
+            guid:                    guid,
+            author:                  author,
+            property:                property,
+            parent_guid:             parent_guid,
+            author_signature:        "aa",
             parent_author_signature: "bb"
           }
 

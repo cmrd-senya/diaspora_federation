@@ -12,7 +12,7 @@ module DiasporaFederation
   "entity_data": {}
 }
 JSON
-          ))
+                                           ))
         }.to raise_error DiasporaFederation::Parsers::BaseParser::InvalidRootNode,
                          "'unknown_entity' can't be parsed by #{entity_class}"
       end

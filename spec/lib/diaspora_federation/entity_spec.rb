@@ -132,7 +132,8 @@ XML
 
           expect {
             Entity.from_xml(Nokogiri::XML::Document.parse(xml).root)
-          }.to raise_error Parsers::BaseParser::InvalidRootNode, "'unknown_entity' can't be parsed by DiasporaFederation::Entity"
+          }.to raise_error Parsers::BaseParser::InvalidRootNode,
+                           "'unknown_entity' can't be parsed by DiasporaFederation::Entity"
         end
       end
 

@@ -54,14 +54,14 @@ module DiasporaFederation
         "SignedRetraction:#{target_type}:#{target_guid}"
       end
 
-      private
-
       # @param [Nokogiri::XML::Element] root_node xml nodes
       # @return [Retraction] instance
       def self.from_hash(hash)
         hash[:target] = Retraction.send(:fetch_target, hash[:target_type], hash[:target_guid])
         new(hash).to_retraction
       end
+
+      private
 
       # It updates also the signatures with the keys of the author and the parent
       # if the signatures are not there yet and if the keys are available.
