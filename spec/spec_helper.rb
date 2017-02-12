@@ -46,20 +46,6 @@ def add_signatures(hash, klass=described_class)
   hash[:parent_author_signature] = properties[:parent_author_signature]
 end
 
-def entity_hash_from(hash)
-  hash.transform_values {|value|
-    if [String, TrueClass, FalseClass, Integer, NilClass].any? {|c| value.is_a? c }
-      value
-    elsif value.is_a? Time
-      value.iso8601
-    elsif value.instance_of?(Array)
-      value.map(&:to_h)
-    else
-      value.to_h
-    end
-  }
-end
-
 # Requires supporting files with custom matchers and macros, etc,
 # in ./support/ and its subdirectories.
 fixture_builder_file = "#{File.dirname(__FILE__)}/support/fixture_builder.rb"

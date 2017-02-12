@@ -1,3 +1,17 @@
+def entity_hash_from(hash)
+  hash.transform_values {|value|
+    if [String, TrueClass, FalseClass, Integer, NilClass].any? {|c| value.is_a? c }
+      value
+    elsif value.is_a? Time
+      value.iso8601
+    elsif value.instance_of?(Array)
+      value.map(&:to_h)
+    else
+      value.to_h
+    end
+  }
+end
+
 shared_examples "an Entity subclass" do
   it "should be an Entity" do
     expect(described_class).to be < DiasporaFederation::Entity

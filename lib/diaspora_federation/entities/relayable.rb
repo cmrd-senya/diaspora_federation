@@ -99,10 +99,9 @@ module DiasporaFederation
       def to_json
         super.merge!(property_order: signature_order).tap {|json_hash|
           missing_properties = json_hash[:property_order] - json_hash[:entity_data].keys
-          missing_data = missing_properties.map {|property|
-            [property, nil]
-          }.to_h
-          json_hash[:entity_data].merge!(missing_data)
+          missing_properties.each {|property|
+            json_hash[:entity_data][property] = nil
+          }
         }
       end
 
