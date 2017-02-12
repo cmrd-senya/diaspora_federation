@@ -161,15 +161,6 @@ shared_examples "JSON is parsable with #from_json" do
   end
 end
 
-shared_examples "it raises error when the entity class doesn't match the entity_class property" do |faulty_json|
-  it "raises error when the entity class doesn't match the entity_class property" do
-    expect {
-      entity_class.from_json(JSON.parse faulty_json)
-    }.to raise_error DiasporaFederation::Parsers::BaseParser::InvalidRootNode,
-                     "'unknown_entity' can't be parsed by #{entity_class}"
-  end
-end
-
 shared_examples ".from_json returns valid object" do
   it "from_json(entity_json).to_json should match entity.to_json" do
     entity_json = entity.to_json.to_json
@@ -177,10 +168,11 @@ shared_examples ".from_json returns valid object" do
   end
 end
 
-shared_examples ".from_json parse error" do |example_name, json|
+# TODO: move to a shared_parser_specs.rb?
+shared_examples ".parse_json parse error" do |example_name, json|
   it "raises error when #{example_name}" do
     expect {
-      entity_class.from_json(JSON.parse  json)
+      json_parser.parse_json(JSON.parse(json))
     }.to raise_error DiasporaFederation::Parsers::JsonParser::DeserializationError
   end
 end

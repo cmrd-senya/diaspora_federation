@@ -203,11 +203,9 @@ module DiasporaFederation
         # @see Entity.from_hash
         def from_hash(properties_hash, property_order)
           return if properties_hash.nil?
-          #property_order = properties_hash.keys if property_order.nil?
           # Use all known properties to build the Entity (entity_data). All additional xml elements
-          # are respected and attached to a hash as string (additional_xml_elements). It also remembers
-          # the order of the xml-nodes (xml_order). This is needed to support receiving objects from
-          # the future versions of diaspora*, where new elements may have been added.
+          # are respected and attached to a hash as string (additional_xml_elements). This is needed
+          # to support receiving objects from the future versions of diaspora*, where new elements may have been added.
           entity_data = properties_hash
           additional_xml_elements = entity_data.slice!(*class_props.keys)
 

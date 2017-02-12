@@ -472,14 +472,6 @@ XML
     describe ".from_json" do
       let(:entity_class) { SomeRelayable }
 
-      include_examples "it raises error when the entity class doesn't match the entity_class property", <<-JSON
-{
-  "entity_class": "unknown_entity",
-  "entity_data": {},
-  "property_order": []
-}
-JSON
-
       include_examples ".from_json parse error", "entity_class is missing", '{"entity_data": {}}'
       include_examples ".from_json parse error", "entity_data is missing", '{"entity_class": "some_relayable"}'
       include_examples ".from_json parse error", "property_order is missing",
